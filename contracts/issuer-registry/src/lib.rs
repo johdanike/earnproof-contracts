@@ -3,13 +3,15 @@
 use earnproof_shared::{
     ContractError, GenesisRecord, GovernanceRole, GovernanceRoleAssignment, InterfaceVersion,
     IssuerAssuranceLevelCommitment, IssuerError, IssuerPolicyCommitments, IssuerQueryStatus,
-    IssuerRecord, IssuerStatus, IssuerStatusResult, MigrationStatus, RotationRecord,
-    SigningKeyCommitment, SigningKeyLifecycleRecord, SigningKeyLifecycleTransition, TtlStatus,
-    UpgradeApproval, UpgradeReceipt, ISSUER_ASSURANCE_COMMITMENT_VERSION,
+    IssuerRecord, IssuerStatus, IssuerStatusResult, MigrationStatus, RoleAssignmentListResponse,
+    RotationRecord, SigningKeyCommitment, SigningKeyLifecycleRecord, SigningKeyLifecycleTransition,
+    TtlStatus, UpgradeApproval, UpgradeReceipt, ISSUER_ASSURANCE_COMMITMENT_VERSION,
     ISSUER_ASSURANCE_HISTORY_CAPACITY, ISSUER_REGISTRY_INTERFACE_VERSION,
-    MAX_ISSUER_ASSURANCE_HISTORY_PAGE, MAX_ISSUER_ASSURANCE_LEVEL, MAX_ISSUER_STATUS_BATCH,
-    MAX_MIGRATION_BATCH, MAX_SIGNING_KEY_LIFECYCLE_PAGE, METADATA_REVISION_INITIAL,
-    MIGRATION_STATUS_VERSION, SIGNING_KEY_LIFECYCLE_HISTORY_CAPACITY, TTL_EXTEND_TO_LEDGERS,
+    MAX_GOVERNANCE_ROLE_ASSIGNMENTS_PER_ROLE, MAX_GOVERNANCE_ROLE_ACTIVATION_DELAY_LEDGERS,
+    MAX_GOVERNANCE_ROLES_PER_PRINCIPAL, MAX_ISSUER_ASSURANCE_HISTORY_PAGE,
+    MAX_ISSUER_ASSURANCE_LEVEL, MAX_ISSUER_STATUS_BATCH, MAX_MIGRATION_BATCH,
+    MAX_SIGNING_KEY_LIFECYCLE_PAGE, METADATA_REVISION_INITIAL, MIGRATION_STATUS_VERSION,
+    SIGNING_KEY_LIFECYCLE_HISTORY_CAPACITY, TTL_EXTEND_TO_LEDGERS, TTL_THRESHOLD_LEDGERS,
     AdminTransferState, AdminTransferStatus, CompromisedSigningKeyRecord, ContractError,
     GenesisRecord, GovernanceAssignmentState, GovernanceRole, GovernanceRoleAssignment,
     InterfaceVersion, IssuerError, IssuerPolicyCommitments, IssuerQueryStatus, IssuerRecord,
@@ -29,6 +31,9 @@ use earnproof_shared::{
     UPGRADE_APPROVAL_EXPIRY_LEDGERS, UPGRADE_TIMELOCK_LEDGERS,
 };
 use soroban_sdk::{contract, contractevent, contractimpl, contracttype, Address, BytesN, Env, Vec};
+
+mod contract;
+mod state;
 
 const ISSUER_ROTATION_EXPIRY_LEDGERS: u32 = 518_400;
 
@@ -90,6 +95,16 @@ enum DataKey {
     PendingIssuerRotation(BytesN<32>),
     GovernanceAssignment(GovernanceRole, Address),
     GovernanceRoleDelay(GovernanceRole),
+    /// Ordered index of the principals that hold one governance role, oldest
+    /// grant first.
+    RoleAssignmentIndex(GovernanceRole, u32),
+    /// Number of principals indexed under one governance role.
+    RoleAssignmentIndexCount(GovernanceRole),
+    /// Ordered index of the governance roles one principal holds, oldest
+    /// grant first.
+    PrincipalRoleIndex(Address, u32),
+    /// Number of governance roles indexed for one principal.
+    PrincipalRoleIndexCount(Address),
     RevocationTombstone(BytesN<32>),
 }
 
@@ -375,6 +390,9 @@ impl IssuerRegistryContract {
             return Err(ContractError::InvalidTimingConfig);
         }
         Self::consume_proposal(&env, &proposal_id).map_err(|_| ContractError::InvalidInput)?;
+        // The index and the assignment are written in the same invocation, so
+        // a grant that the index cannot hold leaves no assignment behind.
+        state::index_assignment(&env, role, &address)?;
         let assignment = GovernanceRoleAssignment {
             role,
             address: address.clone(),
@@ -428,6 +446,137 @@ impl IssuerRegistryContract {
     ) -> Option<GovernanceAssignmentState> {
         let assignment = Self::get_governance_assignment(env.clone(), role, address)?;
         Some(assignment.state_at(env.ledger().sequence()))
+    }
+
+    /// Returns a bounded page of the assignments that currently hold `role`.
+    ///
+    /// The page is walked in grant order, oldest first, and `start_after`
+    /// names the principal the page resumes after. The requested `limit` is
+    /// clamped to the registry's maximum page size, so the work a page costs
+    /// is bounded by the contract and not by the request.
+    ///
+    /// Only the administrator may enumerate. The listing names every address
+    /// that holds the role, which is governance state rather than public
+    /// data. Enumerating confers nothing: every operation that consults a
+    /// role still consults the assignment itself.
+    pub fn get_role_assignments(
+        env: Env,
+        role: GovernanceRole,
+        start_after: Option<Address>,
+        limit: Option<u32>,
+    ) -> Result<RoleAssignmentListResponse, ContractError> {
+        let admin = Self::get_admin(env.clone()).map_err(|_| ContractError::NotInitialized)?;
+        Self::require_auth(&admin);
+        contract::query_role_assignments(&env, role, start_after, limit)
+    }
+
+    /// Returns a bounded page of the roles `principal` currently holds.
+    ///
+    /// The page is walked in grant order, oldest first, and `start_after`
+    /// names the role the page resumes after. The requested `limit` is
+    /// clamped to the registry's maximum page size.
+    pub fn get_principal_roles(
+        env: Env,
+        principal: Address,
+        start_after: Option<GovernanceRole>,
+        limit: Option<u32>,
+    ) -> Result<RoleAssignmentListResponse, ContractError> {
+        let admin = Self::get_admin(env.clone()).map_err(|_| ContractError::NotInitialized)?;
+        Self::require_auth(&admin);
+        contract::query_principal_roles(&env, &principal, start_after, limit)
+    }
+
+    /// Returns a bounded page of the most recently granted assignments for
+    /// `role`.
+    ///
+    /// The page is walked in reverse grant order, newest first, so an
+    /// administrator sees the latest grants rather than the oldest. A grant
+    /// whose activation ledger is still in the future is included: it has
+    /// been made but is not in force yet, and hiding it would hide a pending
+    /// grant. An expired assignment is not.
+    pub fn get_recent_role_assignments(
+        env: Env,
+        role: GovernanceRole,
+        start_after: Option<Address>,
+        limit: Option<u32>,
+    ) -> Result<RoleAssignmentListResponse, ContractError> {
+        let admin = Self::get_admin(env.clone()).map_err(|_| ContractError::NotInitialized)?;
+        Self::require_auth(&admin);
+        contract::query_recent_role_assignments(&env, role, start_after, limit)
+    }
+
+    /// Drops the assignments of `role` that have expired from the governance
+    /// indexes.
+    ///
+    /// The assignment records are left in place: an expired assignment is a
+    /// historical fact, and `governance_role_state` keeps reporting it as
+    /// expired. What the sweep removes is the index entry, which is what
+    /// occupies a slot in a bounded list.
+    ///
+    /// Returns the number of index entries dropped.
+    pub fn expire_role_assignments(env: Env, role: GovernanceRole) -> Result<u32, ContractError> {
+        let admin = Self::get_admin(env.clone()).map_err(|_| ContractError::NotInitialized)?;
+        Self::require_auth(&admin);
+        let ledger = env.ledger().sequence();
+        let mut expired = 0u32;
+        let mut slot = 0u32;
+        // The index shrinks as entries are dropped, so the bound is read on
+        // every pass and the cursor stays on the entry that took the place
+        // of the one just removed.
+        while slot < state::role_index_count(&env, role) {
+            let Some(principal) = state::role_index_entry(&env, role, slot) else {
+                slot += 1;
+                continue;
+            };
+            let assignment: Option<GovernanceRoleAssignment> = env
+                .storage()
+                .persistent()
+                .get(&DataKey::GovernanceAssignment(role, principal.clone()));
+            let lapsed = match assignment {
+                Some(record) => record
+                    .expiration_ledger
+                    .map(|expiry| ledger >= expiry)
+                    .unwrap_or(false),
+                // An index entry without a record cannot be acted on, so it is
+                // dropped along with the expired ones.
+                None => true,
+            };
+            if lapsed {
+                state::unindex_assignment(&env, role, &principal);
+                expired += 1;
+                continue;
+            }
+            slot += 1;
+        }
+        Ok(expired)
+    }
+
+    /// Adds an existing assignment to the governance indexes.
+    ///
+    /// An assignment granted before the indexes existed is invisible to
+    /// enumeration until it is indexed. This brings one such assignment into
+    /// the index without regranting it: the activation ledger, the expiry,
+    /// and the proposal that produced it are left exactly as they are.
+    ///
+    /// Returns `true` when the assignment was indexed by this call, and
+    /// `false` when there was nothing to migrate or the assignment was
+    /// already indexed.
+    pub fn migrate_role_assignment(
+        env: Env,
+        role: GovernanceRole,
+        address: Address,
+    ) -> Result<bool, ContractError> {
+        let admin = Self::get_admin(env.clone()).map_err(|_| ContractError::NotInitialized)?;
+        Self::require_auth(&admin);
+        let key = DataKey::GovernanceAssignment(role, address.clone());
+        if !env.storage().persistent().has(&key) {
+            return Ok(false);
+        }
+        if state::role_index_slot(&env, role, &address).is_some() {
+            return Ok(false);
+        }
+        state::index_assignment(&env, role, &address)?;
+        Ok(true)
     }
 
     /// Sets the minimum delay for future grants of a role. Existing
@@ -485,6 +634,9 @@ impl IssuerRegistryContract {
             return Err(ContractError::NotFound);
         }
         env.storage().persistent().remove(&key);
+        // The index entry goes with the assignment: a removed holder must not
+        // keep occupying a slot in a bounded list.
+        state::unindex_assignment(&env, role, &address);
         GovernanceRoleRemoved {
             role,
             address,

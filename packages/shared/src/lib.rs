@@ -10,6 +10,11 @@ pub use storage_namespaces::{StorageClass, StorageNamespace, STORAGE_NAMESPACES}
 pub mod error_catalog;
 
 pub use error_catalog::{Domain, ErrorSpec, Retry, Status, ERROR_CATALOG};
+pub mod msg;
+
+pub use msg::{
+    RoleAssignmentListResponse, RoleAssignmentResponse, DEFAULT_QUERY_LIMIT, MAX_QUERY_LIMIT,
+};
 
 // Export upgrade approval types for use across all contracts
 pub use soroban_sdk::String as SorobanString;
@@ -522,6 +527,20 @@ pub enum GovernanceRole {
 /// Maximum configurable delay between granting a governance role and its
 /// activation (approximately one week at five-second ledgers).
 pub const MAX_GOVERNANCE_ROLE_ACTIVATION_DELAY_LEDGERS: u32 = 120_960;
+
+/// Maximum number of principals that may hold one governance role at once.
+///
+/// The role index is a finite list, so an enumeration page can be served
+/// without scanning unbounded state and a grant can never grow the index
+/// without limit.
+pub const MAX_GOVERNANCE_ROLE_ASSIGNMENTS_PER_ROLE: u32 = 64;
+
+/// Maximum number of governance roles one principal may hold at once.
+///
+/// The principal index is bounded for the same reason the role index is: it
+/// is a finite list, and the bound is what keeps a principal from consuming
+/// an unbounded number of index slots.
+pub const MAX_GOVERNANCE_ROLES_PER_PRINCIPAL: u32 = 16;
 
 #[contracttype]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
