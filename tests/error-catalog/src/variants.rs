@@ -179,6 +179,11 @@ fn declared_variants() -> std::vec::Vec<(&'static str, &'static str, u32)> {
         ),
         (
             "IssuerError",
+            "SigningKeyProposalExpired",
+            IssuerError::SigningKeyProposalExpired as u32
+        ),
+        (
+            "IssuerError",
             "InvalidMetadataCommitment",
             IssuerError::InvalidMetadataCommitment as u32
         ),
@@ -326,6 +331,16 @@ fn declared_variants() -> std::vec::Vec<(&'static str, &'static str, u32)> {
             "ProofError",
             "UnsupportedNullifierDomain",
             ProofError::UnsupportedNullifierDomain as u32,
+        ),
+        (
+            "ProofError",
+            "ProofNotPending",
+            ProofError::ProofNotPending as u32,
+        ),
+        (
+            "ProofError",
+            "ProofAlreadyCancelled",
+            ProofError::ProofAlreadyCancelled as u32,
         ),
     ]
 }

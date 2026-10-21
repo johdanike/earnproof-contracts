@@ -155,7 +155,7 @@ pub struct ErrorSpec {
 }
 
 /// Every published error, ordered by code.
-pub const ERROR_CATALOG: [ErrorSpec; 61] = [
+pub const ERROR_CATALOG: [ErrorSpec; 67] = [
     ErrorSpec {
         code: 1,
         name: "AlreadyInitialized",
@@ -601,6 +601,18 @@ pub const ERROR_CATALOG: [ErrorSpec; 61] = [
         client_message: "Issuer sequence cannot advance",
     },
     ErrorSpec {
+        code: 215,
+        name: "SigningKeyProposalExpired",
+        enum_name: "IssuerError",
+        domain: Domain::IssuerRegistry,
+        status: Status::Returned,
+        cause: "The pending signing-key proposal expired before it was activated, or was proposed with an expiry that is not strictly in the future.",
+        retry: Retry::AfterCallerChange,
+        remediation: "Propose the key again with a later expiry and activate it before that expiry.",
+        http_status: 409,
+        client_message: "Signing key proposal expired",
+    },
+    ErrorSpec {
         code: 300,
         name: "ProofAlreadyRegistered",
         enum_name: "ProofError",
@@ -923,6 +935,30 @@ pub const ERROR_CATALOG: [ErrorSpec; 61] = [
         remediation: "Query get_nullifier_domain_versions and submit a nullifier derived under a currently supported version.",
         http_status: 400,
         client_message: "Unsupported nullifier domain version",
+    },
+    ErrorSpec {
+        code: 327,
+        name: "ProofNotPending",
+        enum_name: "ProofError",
+        domain: Domain::ProofRegistry,
+        status: Status::Returned,
+        cause: "The proof has no pending activation to cancel: it was never staged with an activation time, or the activation boundary was already reached and the proof activated.",
+        retry: Retry::Never,
+        remediation: "Cancel before the activation time. Once the activation boundary is reached the proof is active and can only be revoked.",
+        http_status: 409,
+        client_message: "Proof has no pending activation to cancel",
+    },
+    ErrorSpec {
+        code: 328,
+        name: "ProofAlreadyCancelled",
+        enum_name: "ProofError",
+        domain: Domain::ProofRegistry,
+        status: Status::Returned,
+        cause: "The proof's pending activation was already cancelled.",
+        retry: Retry::Never,
+        remediation: "A cancellation is terminal. Register a new proof id if a fresh activation is required.",
+        http_status: 409,
+        client_message: "Proof activation already cancelled",
     },
 ];
 

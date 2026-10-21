@@ -315,7 +315,7 @@ pub fn deployment() -> Deployment {
     let proofs_id = env.register(ProofRegistryContract, ());
     let proofs = ProofRegistryContractClient::new(&env, &proofs_id);
     proofs.initialize(&admin, &issuers_id, &config_id);
-    proofs.register_proof_with_type_identifier(
+    proofs.register_proof_with_type_id(
         &proof_id,
         &bytes32(&env, 6),
         &issuer,
@@ -396,14 +396,8 @@ pub fn exercised_deployment() -> Deployment {
         &bytes32(&env, 11),
         &bytes32(&env, 99),
     );
-    issuers.suspend_issuer(
-        &bytes32(&env, 10),
-        &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
-    );
-    issuers.reactivate_issuer(
-        &bytes32(&env, 10),
-        &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
-    );
+    issuers.suspend_issuer(&BytesN::from_array(&env, &[290u8; 32]), &bytes32(&env, 10), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
+    issuers.reactivate_issuer(&BytesN::from_array(&env, &[293u8; 32]), &bytes32(&env, 10), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
     issuers.rotate_issuer_address(&bytes32(&env, 10), &Address::generate(&env));
     issuers.register_issuer(
         &bytes32(&env, 20),
@@ -411,25 +405,19 @@ pub fn exercised_deployment() -> Deployment {
         &bytes32(&env, 21),
         &bytes32(&env, 99),
     );
-    issuers.revoke_issuer(
-        &bytes32(&env, 20),
-        &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
-    );
+    issuers.revoke_issuer(&BytesN::from_array(&env, &[292u8; 32]), &bytes32(&env, 20), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
     issuers.register_issuer(
         &bytes32(&env, 30),
         &held_suspended_issuer,
         &bytes32(&env, 31),
         &bytes32(&env, 99),
     );
-    issuers.suspend_issuer(
-        &bytes32(&env, 30),
-        &soroban_sdk::BytesN::from_array(&env, &[2u8; 32]),
-    );
+    issuers.suspend_issuer(&BytesN::from_array(&env, &[291u8; 32]), &bytes32(&env, 30), &soroban_sdk::BytesN::from_array(&env, &[2u8; 32]));
 
     let proofs_id = env.register(ProofRegistryContract, ());
     let proofs = ProofRegistryContractClient::new(&env, &proofs_id);
     proofs.initialize(&admin, &issuers_id, &config_id);
-    proofs.register_proof_with_type_identifier(
+    proofs.register_proof_with_type_id(
         &proof_id,
         &bytes32(&env, 6),
         &rotated_issuer,
@@ -446,7 +434,7 @@ pub fn exercised_deployment() -> Deployment {
         &Some(proof_id.clone()),
         &soroban_sdk::BytesN::from_array(&env, &[1; 32]),
     );
-    proofs.register_proof_with_type_identifier(
+    proofs.register_proof_with_type_id(
         &bytes32(&env, 7),
         &bytes32(&env, 8),
         &rotated_issuer,
@@ -471,7 +459,7 @@ pub fn exercised_deployment() -> Deployment {
     proofs.approve_upgrade(&wasm_hash_proofs, &2);
     proofs.approve_upgrade(&pending_proofs, &3);
 
-    proofs.register_proof_with_type_identifier_and_payload(
+    proofs.register_proof_with_type_payload(
         &bytes32(&env, 9),
         &bytes32(&env, 10),
         &rotated_issuer,

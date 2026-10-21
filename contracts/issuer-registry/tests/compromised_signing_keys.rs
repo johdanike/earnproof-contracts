@@ -35,7 +35,7 @@ fn compromise_is_immutable_and_blocks_reactivation() {
     client.activate_issuer_signing_key(&issuer_id);
     env.ledger().with_mut(|ledger| ledger.sequence_number = 700);
 
-    let record = client.mark_signing_key_compromised(&issuer_id, &key_hash, &1, &hash(&env, 5));
+    let record = client.mark_key_compromised_with_reason(&issuer_id, &key_hash, &1, &hash(&env, 5));
     assert_eq!(record.record_version, 1);
     assert_eq!(record.effective_ledger, 700);
     assert_eq!(record.sequence, 0);
@@ -45,7 +45,7 @@ fn compromise_is_immutable_and_blocks_reactivation() {
         Err(Ok(IssuerError::InvalidTransition))
     );
     assert_eq!(
-        client.try_mark_signing_key_compromised(&issuer_id, &key_hash, &1, &hash(&env, 6)),
+        client.try_mark_key_compromised_with_reason(&issuer_id, &key_hash, &1, &hash(&env, 6)),
         Err(Ok(IssuerError::InvalidTransition))
     );
 }
@@ -59,7 +59,7 @@ fn retired_key_history_is_bounded_and_unknown_key_is_atomic() {
     client.activate_issuer_signing_key(&issuer_id);
     client.propose_issuer_signing_key(&issuer_id, &active, &1);
     client.activate_issuer_signing_key(&issuer_id);
-    client.mark_signing_key_compromised(&issuer_id, &retired, &1, &hash(&env, 9));
+    client.mark_key_compromised_with_reason(&issuer_id, &retired, &1, &hash(&env, 9));
 
     let page = client.get_compromised_key_history(&issuer_id, &0, &1);
     assert_eq!(page.len(), 1);
@@ -69,7 +69,7 @@ fn retired_key_history_is_bounded_and_unknown_key_is_atomic() {
         Err(Ok(IssuerError::BatchTooLarge))
     );
     assert_eq!(
-        client.try_mark_signing_key_compromised(&issuer_id, &hash(&env, 10), &1, &hash(&env, 11)),
+        client.try_mark_key_compromised_with_reason(&issuer_id, &hash(&env, 10), &1, &hash(&env, 11)),
         Err(Ok(IssuerError::InvalidTransition))
     );
     assert_eq!(
@@ -91,14 +91,14 @@ fn non_admin_cannot_mark_a_key() {
         address: &outsider,
         invoke: &MockAuthInvoke {
             contract: &client.address,
-            fn_name: "mark_signing_key_compromised",
+            fn_name: "mark_key_compromised_with_reason",
             args: (issuer_id.clone(), key_hash.clone(), 1u32, hash(&env, 13)).into_val(&env),
             sub_invokes: &[],
         },
     }]);
 
     assert!(client
-        .try_mark_signing_key_compromised(&issuer_id, &key_hash, &1, &hash(&env, 13))
+        .try_mark_key_compromised_with_reason(&issuer_id, &key_hash, &1, &hash(&env, 13))
         .is_err());
     assert!(client
         .get_compromised_signing_key(&issuer_id, &key_hash, &1)

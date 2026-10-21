@@ -62,13 +62,13 @@ fn apply(deployment: &Deployment, update: Update) {
         Update::ApproveSchema => deployment.config.approve_schema_version(&APPROVED_SCHEMA),
         Update::SuspendIssuer => deployment
             .issuers
-            .suspend_issuer(&deployment.issuer_id, &reason),
+            .suspend_issuer(&BytesN::from_array(&deployment.env, &[250u8; 32]), &deployment.issuer_id, &reason),
         Update::ReactivateIssuer => deployment
             .issuers
-            .reactivate_issuer(&deployment.issuer_id, &reason),
+            .reactivate_issuer(&BytesN::from_array(&deployment.env, &[253u8; 32]), &deployment.issuer_id, &reason),
         Update::RevokeIssuer => deployment
             .issuers
-            .revoke_issuer(&deployment.issuer_id, &reason),
+            .revoke_issuer(&BytesN::from_array(&deployment.env, &[252u8; 32]), &deployment.issuer_id, &reason),
     }
 }
 
@@ -87,7 +87,7 @@ fn permits_registration(update: Update) -> bool {
 /// Attempts a registration and reports whether it was accepted.
 fn attempt(deployment: &Deployment, discriminator: u8) -> bool {
     let rejection = outcome_of(|| {
-        deployment.proofs.try_register_proof_with_type_identifier(
+        deployment.proofs.try_register_proof_with_type_id(
             &hash(&deployment.env, discriminator),
             &commitment(&deployment.env, discriminator),
             &deployment.issuer,
@@ -220,10 +220,7 @@ fn a_dependency_change_during_a_failing_invocation_is_discarded() {
     });
     let racing =
         SelfPausingConfigClient::new(&deployment.env, &deployment.proofs.get_protocol_config());
-    deployment.issuers.suspend_issuer(
-        &deployment.issuer_id,
-        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-    );
+    deployment.issuers.suspend_issuer(&BytesN::from_array(&deployment.env, &[251u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
 
     let rejection = deployment.assert_rejected_and_atomic(&hash(&deployment.env, 0xB6));
 
@@ -235,9 +232,6 @@ fn a_dependency_change_during_a_failing_invocation_is_discarded() {
 
     // The discarded change left nothing behind: once the issuer is active
     // again, registration works exactly as it would have before the failure.
-    deployment.issuers.reactivate_issuer(
-        &deployment.issuer_id,
-        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-    );
+    deployment.issuers.reactivate_issuer(&BytesN::from_array(&deployment.env, &[254u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
     deployment.register(0xB7);
 }

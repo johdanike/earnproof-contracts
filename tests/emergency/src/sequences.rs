@@ -150,24 +150,15 @@ fn apply_to_contracts(deployment: &Deployment, op: Op, step: usize) -> bool {
         }
         SuspendIssuer => deployment
             .issuers
-            .try_suspend_issuer(
-                &issuer_id,
-                &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-            )
+            .try_suspend_issuer(&BytesN::from_array(&deployment.env, &[78u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
             .is_ok(),
         ReactivateIssuer => deployment
             .issuers
-            .try_reactivate_issuer(
-                &issuer_id,
-                &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-            )
+            .try_reactivate_issuer(&BytesN::from_array(&deployment.env, &[80u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
             .is_ok(),
         RevokeIssuer => deployment
             .issuers
-            .try_revoke_issuer(
-                &issuer_id,
-                &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-            )
+            .try_revoke_issuer(&BytesN::from_array(&deployment.env, &[79u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
             .is_ok(),
         RevokeProof => deployment
             .proofs
@@ -177,7 +168,7 @@ fn apply_to_contracts(deployment: &Deployment, op: Op, step: usize) -> bool {
             let discriminator = 0x40u8.wrapping_add(step as u8);
             deployment
                 .proofs
-                .try_register_proof_with_type_identifier(
+                .try_register_proof_with_type_id(
                     &hash(&deployment.env, discriminator),
                     &hash(&deployment.env, discriminator ^ 0xFF),
                     &deployment.issuer,
@@ -359,7 +350,7 @@ fn a_stale_caller_cannot_register_against_a_deprecated_schema() {
     assert!(
         deployment
             .proofs
-            .try_register_proof_with_type_identifier(
+            .try_register_proof_with_type_id(
                 &hash(&deployment.env, 0xE1),
                 &hash(&deployment.env, 0xE2),
                 &deployment.issuer,
@@ -389,10 +380,7 @@ fn cross_contract_disagreement_resolves_in_favour_of_containment() {
         let issuer_id = issuer_id_hash(&deployment.env, 1);
 
         if revoke_issuer {
-            deployment.issuers.revoke_issuer(
-                &issuer_id,
-                &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-            );
+            deployment.issuers.revoke_issuer(&BytesN::from_array(&deployment.env, &[287u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
         }
         if paused {
             deployment.config.pause();
@@ -400,7 +388,7 @@ fn cross_contract_disagreement_resolves_in_favour_of_containment() {
 
         let accepted = deployment
             .proofs
-            .try_register_proof_with_type_identifier(
+            .try_register_proof_with_type_id(
                 &hash(&deployment.env, 0xF1),
                 &hash(&deployment.env, 0xF2),
                 &deployment.issuer,
@@ -427,10 +415,7 @@ fn rejected_operations_leave_no_partial_state() {
     // revoked (blocking suspend/reactivate) and the fixture proof is revoked
     // (blocking a second revocation).
     deployment.config.pause();
-    deployment.issuers.revoke_issuer(
-        &issuer_id_hash(&deployment.env, 1),
-        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-    );
+    deployment.issuers.revoke_issuer(&BytesN::from_array(&deployment.env, &[288u8; 32]), &issuer_id_hash(&deployment.env, 1), &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
     deployment
         .proofs
         .admin_revoke_proof(&hash(&deployment.env, FIXTURE_PROOF));

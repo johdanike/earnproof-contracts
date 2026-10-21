@@ -2,23 +2,24 @@
 
 use earnproof_shared::{
     AdminTransferState, AdminTransferStatus, ConfigChangeCategory, ConfigChangeSummary,
-    ContractError, CriticalAction, CriticalActionPolicy, CriticalActionProposal, GenesisRecord,
-    InterfaceVersion, MigrationStatus, PauseAcknowledgementRecord, PauseAcknowledgementRole,
-    PauseScope, SchemaPolicy, ADMIN_TRANSFER_EXPIRY_LEDGERS, CONFIG_HISTORY_CAPACITY,
-    CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS, DEFAULT_SCHEMA_PAYLOAD_LIMIT,
-    LEGACY_COMMITMENT_ALGORITHM, LEGACY_PROOF_TYPE, MAX_CONFIG_HISTORY_PAGE,
-    MAX_CRITICAL_ACTION_SIGNERS, MAX_MIGRATION_BATCH, MAX_PAUSE_ACKNOWLEDGEMENT_HISTORY_PAGE,
-    ConfigChangeCategory, ConfigChangeSummary, ContractError, CriticalAction, CriticalActionPolicy,
-    CriticalActionProposal, DisputeFilingAnchor, DisputeFilingPolicy, GenesisRecord,
-    InterfaceVersion, MigrationStatus, PauseScope, SchemaLifecyclePolicy, SchemaPolicy,
-    SchemaPolicyDigest, SchemaRateLimit, CONFIG_HISTORY_CAPACITY,
-    CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS, DEFAULT_SCHEMA_PAYLOAD_LIMIT,
-    DEFAULT_SCHEMA_RATE_LIMIT, DEFAULT_SCHEMA_RATE_WINDOW_LEDGERS, DISPUTE_FILING_POLICY_VERSION,
-    LEGACY_COMMITMENT_ALGORITHM, LEGACY_PROOF_TYPE, MAX_CONFIG_HISTORY_PAGE,
-    MAX_CRITICAL_ACTION_SIGNERS, MAX_MIGRATION_BATCH, MAX_NULLIFIER_DOMAIN_VERSIONS,
-    MAX_SCHEMA_LINEAGE_DEPTH, MAX_SCHEMA_PROOF_TYPES, MAX_SCHEMA_VALIDITY_SECONDS,
-    MIGRATION_STATUS_VERSION, PROTOCOL_CONFIG_INTERFACE_VERSION, SHA256_COMMITMENT_ALGORITHM_V1,
-    TTL_EXTEND_TO_LEDGERS, TTL_THRESHOLD_LEDGERS,
+    ContractError, CriticalAction, CriticalActionPolicy, CriticalActionProposal,
+    DisputeFilingAnchor, DisputeFilingPolicy, EmergencyAction, EmergencyActionProposal,
+    EmergencyFastTrackPolicy, GenesisRecord, GovernanceActionDomain, GovernanceApprovalEligibility,
+    GovernanceApprovalSnapshot, GovernanceApproverSnapshot, GovernanceApproverVersion,
+    InterfaceVersion, MigrationStatus,
+    PauseAcknowledgementRecord, PauseAcknowledgementRole, PauseScope, SchemaActivationNotice,
+    SchemaActivationState, SchemaCompatibility, SchemaLifecyclePolicy, SchemaPolicy,
+    SchemaPolicyDigest, SchemaRateLimit, SchemaReplacementPointer, ADMIN_TRANSFER_EXPIRY_LEDGERS,
+    CONFIG_HISTORY_CAPACITY, CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS,
+    DEFAULT_SCHEMA_PAYLOAD_LIMIT, DEFAULT_SCHEMA_RATE_LIMIT, DEFAULT_SCHEMA_RATE_WINDOW_LEDGERS,
+    DISPUTE_FILING_POLICY_VERSION, EMERGENCY_FAST_TRACK_ENCODING_VERSION,
+    GOVERNANCE_ACTION_HASH_VERSION, GOVERNANCE_APPROVAL_SNAPSHOT_VERSION,
+    GOVERNANCE_APPROVER_SNAPSHOT_VERSION, LEGACY_COMMITMENT_ALGORITHM, LEGACY_PROOF_TYPE,
+    MAX_CONFIG_HISTORY_PAGE, MAX_CRITICAL_ACTION_SIGNERS, MAX_MIGRATION_BATCH,
+    MAX_NULLIFIER_DOMAIN_VERSIONS, MAX_PAUSE_ACKNOWLEDGEMENT_HISTORY_PAGE,
+    MAX_SCHEMA_ACTIVATION_NOTICE_SECONDS, MAX_SCHEMA_LINEAGE_DEPTH, MAX_SCHEMA_PROOF_TYPES,
+    MAX_SCHEMA_VALIDITY_SECONDS, MIGRATION_STATUS_VERSION, PROTOCOL_CONFIG_INTERFACE_VERSION,
+    SHA256_COMMITMENT_ALGORITHM_V1, TTL_EXTEND_TO_LEDGERS, TTL_THRESHOLD_LEDGERS,
 };
 use soroban_sdk::{
     contract, contractevent, contractimpl, contracttype, xdr::ToXdr, Address, BytesN, Env, Symbol,
@@ -1037,10 +1038,6 @@ impl ProtocolConfigContract {
         env.storage()
             .instance()
             .set(&DataKey::MinSchemaActivationNotice, &minimum_notice_seconds);
-            .persistent()
-            .set(&DataKey::SchemaVersion(version), &true);
-        Self::record_schema_approval(&env, version);
-        Self::extend_schema_ttl(env.clone(), version);
         Self::bump_config_version(env.clone());
         Self::append_config_history(
             env.clone(),
@@ -1966,7 +1963,6 @@ impl ProtocolConfigContract {
         let commitment = Self::commit(&env, proposal.action.clone());
         match proposal.action.clone() {
             CriticalAction::SchemaApproval(version) => {
-                Self::apply_schema_activation(
                 Self::ensure_nonzero_version(version)?;
                 env.storage()
                     .persistent()
@@ -1975,11 +1971,9 @@ impl ProtocolConfigContract {
                 Self::extend_schema_ttl(env.clone(), version);
                 Self::record_critical_action_change(
                     env.clone(),
-                    version,
-                    env.ledger().timestamp(),
                     ConfigChangeCategory::SchemaApproval,
                     commitment,
-                )?;
+                );
             }
             CriticalAction::SchemaActivation(version, activates_at) => {
                 Self::apply_schema_activation(
@@ -3194,16 +3188,11 @@ mod test {
 
     use super::{DataKey, ProtocolConfigContract, ProtocolConfigContractClient};
     use earnproof_shared::{
-        ConfigChangeCategory, ContractError, CriticalAction, CriticalActionPolicy, EmergencyAction,
-        EmergencyFastTrackPolicy, GovernanceApprovalEligibility, PauseScope,
-        CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS, GOVERNANCE_ACTION_HASH_VERSION,
-        TTL_THRESHOLD_LEDGERS,
         AdminTransferState, ConfigChangeCategory, ContractError, CriticalAction,
-        CriticalActionPolicy, ADMIN_TRANSFER_EXPIRY_LEDGERS,
-        CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS, TTL_THRESHOLD_LEDGERS,
-        ConfigChangeCategory, ContractError, CriticalAction, CriticalActionPolicy,
-        DisputeFilingAnchor, DisputeFilingPolicy, SchemaRateLimit,
-        CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS, DISPUTE_FILING_POLICY_VERSION,
+        CriticalActionPolicy, DisputeFilingAnchor, DisputeFilingPolicy, EmergencyAction,
+        EmergencyFastTrackPolicy, GovernanceApprovalEligibility, PauseScope, SchemaRateLimit,
+        ADMIN_TRANSFER_EXPIRY_LEDGERS, CRITICAL_ACTION_APPROVAL_EXPIRY_LEDGERS,
+        DISPUTE_FILING_POLICY_VERSION, GOVERNANCE_ACTION_HASH_VERSION,
         SCHEMA_POLICY_DIGEST_VERSION, TTL_THRESHOLD_LEDGERS,
     };
     use soroban_sdk::{

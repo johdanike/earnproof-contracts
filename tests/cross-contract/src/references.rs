@@ -211,7 +211,7 @@ fn a_stale_issuer_address_fails_closed_after_rotation() {
 
     // Attributability: the rotation moved the authority rather than breaking
     // registration outright.
-    deployment.proofs.register_proof_with_type_identifier(
+    deployment.proofs.register_proof_with_type_id(
         &hash(&deployment.env, 0xA8),
         &commitment(&deployment.env, 0xA8),
         &rotated_to,

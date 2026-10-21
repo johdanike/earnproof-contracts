@@ -18,7 +18,12 @@ use crate::GovernanceRole;
 ///
 /// A larger requested limit is clamped to this value rather than rejected, so
 /// a client that asks for "everything" still receives a bounded page.
-pub const MAX_QUERY_LIMIT: u32 = 50;
+///
+/// The bound is set by the ledger rather than by taste: an enumerated
+/// assignment costs two reads, the index entry and the assignment it points
+/// at, and a network invocation may touch a hundred ledger entries. A page of
+/// thirty-two therefore stays well inside that limit.
+pub const MAX_QUERY_LIMIT: u32 = 32;
 
 /// Number of assignments returned when the caller does not ask for a page size.
 pub const DEFAULT_QUERY_LIMIT: u32 = 10;

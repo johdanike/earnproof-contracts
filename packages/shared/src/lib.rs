@@ -539,8 +539,10 @@ pub const MAX_GOVERNANCE_ROLE_ASSIGNMENTS_PER_ROLE: u32 = 64;
 ///
 /// The principal index is bounded for the same reason the role index is: it
 /// is a finite list, and the bound is what keeps a principal from consuming
-/// an unbounded number of index slots.
-pub const MAX_GOVERNANCE_ROLES_PER_PRINCIPAL: u32 = 16;
+/// an unbounded number of index slots. The bound is below the number of
+/// grantable roles on purpose: concentrating several governance roles in one
+/// address is a privilege the registry declines to grant without limit.
+pub const MAX_GOVERNANCE_ROLES_PER_PRINCIPAL: u32 = 4;
 
 #[contracttype]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -734,6 +736,11 @@ pub enum IssuerError {
     MaxBelowActiveUsage = 209,
     /// The suspended issuer's reactivation cooldown has not yet elapsed.
     ReactivationCooldownActive = 210,
+    /// The signing-key proposal expired before it was activated, or was
+    /// proposed with an expiry that is not strictly in the future.
+    /// Recovery: propose a new key with a later expiry, then activate it
+    /// before that expiry.
+    SigningKeyProposalExpired = 215,
 }
 
 /// Proof-specific errors (300-399).
@@ -812,6 +819,15 @@ pub enum ProofError {
     /// The requested subject-nullifier domain version is not currently
     /// supported by protocol governance.
     UnsupportedNullifierDomain = 326,
+    /// The proof has no pending activation that could be cancelled: it was
+    /// never staged with an activation time, or the activation boundary has
+    /// already been reached and the proof has activated.
+    /// Recovery: cancel before the activation time, or revoke the proof once
+    /// it is active.
+    ProofNotPending = 327,
+    /// The proof's pending activation was already cancelled.
+    /// Recovery: none — a cancellation is terminal and cannot be replayed.
+    ProofAlreadyCancelled = 328,
 }
 
 /// Versioned asset identifier accepted by context-aware proof registration.
@@ -1396,6 +1412,26 @@ pub type SchemaVersionDiscoveryEntry = SchemaVersionSummary;
 pub enum ProofStatus {
     Active,
     Revoked,
+    /// The proof's pending activation was cancelled by its issuer before the
+    /// activation boundary was reached. Terminal: a cancelled proof never
+    /// becomes valid, and the cancellation cannot be undone.
+    Cancelled,
+}
+
+/// Immutable record of a cancelled pending activation.
+///
+/// Stored beside the proof record so the encoding of `ProofRecord` — and
+/// therefore of every proof already on chain — is unchanged.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProofCancellationRecord {
+    /// Commitment to the cancellation reason. Opaque to the contract: only
+    /// the issuer can read the preimage.
+    pub reason_commitment: BytesN<32>,
+    /// Ledger timestamp at which the cancellation was committed.
+    pub cancelled_at: u64,
+    /// Ledger sequence at which the cancellation was committed.
+    pub cancelled_ledger: u32,
 }
 
 /// Stores temporal metadata for an upgrade approval.
@@ -1610,6 +1646,7 @@ pub enum ProofValidityReason {
     Expired,
     IssuerInactive,
     SchemaDeprecated,
+    Cancelled,
 }
 
 #[contracttype]
@@ -1722,6 +1759,9 @@ pub enum ProofValidity {
     /// unrevoked, and its issuer is active, but its schema version is no
     /// longer approved.
     SchemaDeprecated,
+    /// The proof's pending activation was cancelled before the activation
+    /// boundary. Terminal, like `Revoked`.
+    Cancelled,
     /// Returned by `proof_validity`: none of the above conditions hold.
     Valid,
 }

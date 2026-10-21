@@ -327,10 +327,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
         &bytes32(env, 21),
         &bytes32(env, 99),
     );
-    initial_dep.issuers.revoke_issuer(
-        &bytes32(env, 20),
-        &soroban_sdk::BytesN::from_array(env, &[1u8; 32]),
-    );
+    initial_dep.issuers.revoke_issuer(&BytesN::from_array(&env, &[259u8; 32]), &bytes32(env, 20), &soroban_sdk::BytesN::from_array(env, &[1u8; 32]));
     observed.record(
         "issuer-registry update revoked issuer",
         code(
@@ -341,10 +338,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
     observed.record(
         "issuer-registry reactivate revoked issuer",
-        code(initial_dep.issuers.try_reactivate_issuer(
-            &bytes32(env, 20),
-            &soroban_sdk::BytesN::from_array(env, &[1u8; 32]),
-        )),
+        code(initial_dep.issuers.try_reactivate_issuer(&BytesN::from_array(&env, &[74u8; 32]), &bytes32(env, 20), &soroban_sdk::BytesN::from_array(env, &[1u8; 32]))),
     );
 
     // --- proof-registry --------------------------------------------------
@@ -364,7 +358,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
 
     let proof_id = bytes32(env, 5);
-    initial_dep.proofs.register_proof_with_type_identifier(
+    initial_dep.proofs.register_proof_with_type_id(
         &proof_id,
         &bytes32(env, 6),
         &initial_dep.issuer,
@@ -374,7 +368,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
     observed.record(
         "proof-registry rejects a protocol-config address as issuer",
-        code(initial_dep.proofs.try_register_proof_with_type_identifier(
+        code(initial_dep.proofs.try_register_proof_with_type_id(
             &bytes32(env, 0xA5),
             &bytes32(env, 0xA6),
             &initial_dep.config_id,
@@ -403,7 +397,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
     observed.record(
         "proof-registry duplicate proof id",
-        code(initial_dep.proofs.try_register_proof_with_type_identifier(
+        code(initial_dep.proofs.try_register_proof_with_type_id(
             &proof_id,
             &bytes32(env, 7),
             &initial_dep.issuer,
@@ -423,7 +417,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
     observed.record(
         "proof-registry expiration in the past",
-        code(initial_dep.proofs.try_register_proof_with_type_identifier(
+        code(initial_dep.proofs.try_register_proof_with_type_id(
             &bytes32(env, 30),
             &bytes32(env, 31),
             &initial_dep.issuer,
@@ -434,7 +428,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
     observed.record(
         "proof-registry schema version zero",
-        code(initial_dep.proofs.try_register_proof_with_type_identifier(
+        code(initial_dep.proofs.try_register_proof_with_type_id(
             &bytes32(env, 32),
             &bytes32(env, 33),
             &initial_dep.issuer,
@@ -445,7 +439,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
     observed.record(
         "proof-registry unapproved schema version",
-        code(initial_dep.proofs.try_register_proof_with_type_identifier(
+        code(initial_dep.proofs.try_register_proof_with_type_id(
             &bytes32(env, 34),
             &bytes32(env, 35),
             &initial_dep.issuer,
@@ -459,7 +453,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
         code(
             initial_dep
                 .proofs
-                .try_register_proof_with_type_identifier_and_payload(
+                .try_register_proof_with_type_payload(
                     &bytes32(env, 36),
                     &bytes32(env, 37),
                     &initial_dep.issuer,
@@ -480,7 +474,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     deployment2.config.pause();
     observed.record(
         "proof-registry contract paused",
-        code(deployment2.proofs.try_register_proof_with_type_identifier(
+        code(deployment2.proofs.try_register_proof_with_type_id(
             &bytes32(env2, 40),
             &bytes32(env2, 41),
             &deployment2.issuer,
@@ -493,13 +487,10 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     // 308: IssuerInactive — suspend the issuer then attempt registration.
     let deployment3 = deployment();
     let env3 = &deployment3.env;
-    deployment3.issuers.suspend_issuer(
-        &bytes32(env3, 1),
-        &soroban_sdk::BytesN::from_array(env3, &[1u8; 32]),
-    );
+    deployment3.issuers.suspend_issuer(&BytesN::from_array(&env, &[255u8; 32]), &bytes32(env3, 1), &soroban_sdk::BytesN::from_array(env3, &[1u8; 32]));
     observed.record(
         "proof-registry issuer inactive",
-        code(deployment3.proofs.try_register_proof_with_type_identifier(
+        code(deployment3.proofs.try_register_proof_with_type_id(
             &bytes32(env3, 50),
             &bytes32(env3, 51),
             &deployment3.issuer,
@@ -514,7 +505,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     let env4 = &deployment4.env;
     observed.record(
         "proof-registry unsupported schema",
-        code(deployment4.proofs.try_register_proof_with_type_identifier(
+        code(deployment4.proofs.try_register_proof_with_type_id(
             &bytes32(env4, 60),
             &bytes32(env4, 61),
             &deployment4.issuer,
@@ -549,7 +540,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
         &bytes32(env_cross, 81),
         &bytes32(env_cross, 82),
     );
-    deployment_cross.proofs.register_proof_with_type_identifier(
+    deployment_cross.proofs.register_proof_with_type_id(
         &bytes32(env_cross, 83),
         &bytes32(env_cross, 84),
         &deployment_cross.issuer,
@@ -587,7 +578,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
 
     let deployment_many = deployment();
     let env_many = &deployment_many.env;
-    deployment_many.proofs.register_proof_with_type_identifier(
+    deployment_many.proofs.register_proof_with_type_id(
         &bytes32(env_many, 100),
         &bytes32(env_many, 101),
         &deployment_many.issuer,
@@ -623,7 +614,7 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     let env5 = &deployment5.env;
     observed.record(
         "proof-registry unsupported proof type",
-        code(deployment5.proofs.try_register_proof_with_type_identifier(
+        code(deployment5.proofs.try_register_proof_with_type_id(
             &bytes32(env5, 70),
             &bytes32(env5, 71),
             &deployment5.issuer,
@@ -664,16 +655,10 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
 
     cap.set_reactivation_cooldown(&1_000);
-    cap.suspend_issuer(
-        &bytes32(env, 50),
-        &soroban_sdk::BytesN::from_array(&env, &[0x99u8; 32]),
-    );
+    cap.suspend_issuer(&BytesN::from_array(&env, &[256u8; 32]), &bytes32(env, 50), &soroban_sdk::BytesN::from_array(&env, &[0x99u8; 32]));
     observed.record(
         "issuer-registry reactivate before cooldown",
-        code(cap.try_reactivate_issuer(
-            &bytes32(env, 50),
-            &soroban_sdk::BytesN::from_array(&env, &[0x99u8; 32]),
-        )),
+        code(cap.try_reactivate_issuer(&BytesN::from_array(&env, &[75u8; 32]), &bytes32(env, 50), &soroban_sdk::BytesN::from_array(&env, &[0x99u8; 32]))),
     );
 
     // --- proof-registry incompatible dependency -------------------------
@@ -780,10 +765,10 @@ fn every_returned_code_is_produced_by_a_real_failure_path() {
     );
 
     cap.set_reactivation_cooldown(&1_000);
-    cap.suspend_issuer(&bytes32(env, 50), &bytes32(env, 57));
+    cap.suspend_issuer(&BytesN::from_array(&env, &[257u8; 32]), &bytes32(env, 50), &bytes32(env, 57));
     observed.record(
         "issuer-registry reactivate before cooldown",
-        code(cap.try_reactivate_issuer(&bytes32(env, 50), &bytes32(env, 56))),
+        code(cap.try_reactivate_issuer(&BytesN::from_array(&env, &[76u8; 32]), &bytes32(env, 50), &bytes32(env, 56))),
     );
 
     observed.record(
@@ -839,7 +824,7 @@ fn a_paused_protocol_is_reported_as_contract_paused() {
     let deployment = deployment();
     deployment.config.pause();
 
-    let result = deployment.proofs.try_register_proof_with_type_identifier(
+    let result = deployment.proofs.try_register_proof_with_type_id(
         &bytes32(&deployment.env, 1),
         &bytes32(&deployment.env, 2),
         &deployment.issuer,
@@ -867,12 +852,9 @@ fn a_suspended_issuer_is_reported_as_issuer_inactive() {
         &bytes32(env, 41),
         &bytes32(env, 99),
     );
-    deployment.issuers.suspend_issuer(
-        &bytes32(env, 40),
-        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-    );
+    deployment.issuers.suspend_issuer(&BytesN::from_array(&deployment.env, &[258u8; 32]), &bytes32(env, 40), &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
 
-    let result = deployment.proofs.try_register_proof_with_type_identifier(
+    let result = deployment.proofs.try_register_proof_with_type_id(
         &bytes32(env, 42),
         &bytes32(env, 43),
         &suspended,
@@ -897,7 +879,7 @@ fn an_uninitialized_proof_registry_reports_proof_not_found_and_writes_nothing() 
     let proofs = ProofRegistryContractClient::new(&env, &contract);
     let issuer = Address::generate(&env);
 
-    let result = proofs.try_register_proof_with_type_identifier(
+    let result = proofs.try_register_proof_with_type_id(
         &bytes32(&env, 1),
         &bytes32(&env, 2),
         &issuer,
@@ -919,7 +901,7 @@ fn a_registry_pointed_at_an_empty_config_reports_unsupported_schema() {
     let proofs = ProofRegistryContractClient::new(env, &proofs_id);
     proofs.initialize(&deployment.admin, &deployment.issuers_id, &empty_config);
 
-    let result = proofs.try_register_proof_with_type_identifier(
+    let result = proofs.try_register_proof_with_type_id(
         &bytes32(env, 1),
         &bytes32(env, 2),
         &deployment.issuer,

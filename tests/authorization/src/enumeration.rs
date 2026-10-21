@@ -22,8 +22,8 @@ use earnproof_shared::{
     DEFAULT_QUERY_LIMIT, MAX_GOVERNANCE_ROLE_ASSIGNMENTS_PER_ROLE, MAX_GOVERNANCE_ROLES_PER_PRINCIPAL,
     MAX_QUERY_LIMIT,
 };
-use soroban_sdk::testutils::Ledger as _;
-use soroban_sdk::{Address, BytesN, Env, IntoVal, Symbol};
+use soroban_sdk::testutils::{Address as _, Ledger as _};
+use soroban_sdk::{Address, IntoVal, Symbol};
 
 use crate::harness::{authorize, hash, Deployment};
 
@@ -83,7 +83,6 @@ fn role_page(
     deployment
         .issuers
         .get_role_assignments(&role, &start_after, &limit)
-        .unwrap()
 }
 
 /// Reads a page of the most recently granted assignments for `role`.
@@ -103,7 +102,6 @@ fn recent_page(
     deployment
         .issuers
         .get_recent_role_assignments(&role, &start_after, &limit)
-        .unwrap()
 }
 
 /// Reads a page of the roles `principal` currently holds.
@@ -118,12 +116,11 @@ fn principal_page(
         &deployment.admin,
         &deployment.issuers_address,
         "get_principal_roles",
-        (&principal, &start_after, &limit).into_val(&deployment.env),
+        (principal, &start_after, &limit).into_val(&deployment.env),
     );
     deployment
         .issuers
-        .get_principal_roles(&principal, &start_after, &limit)
-        .unwrap()
+        .get_principal_roles(principal, &start_after, &limit)
 }
 
 fn principals(page: &RoleAssignmentListResponse) -> std::vec::Vec<Address> {
@@ -367,7 +364,7 @@ fn an_expired_assignment_is_swept_out_of_the_indexes() {
         "expire_role_assignments",
         (&ROLE,).into_val(&deployment.env),
     );
-    let expired = deployment.issuers.expire_role_assignments(&ROLE).unwrap();
+    let expired = deployment.issuers.expire_role_assignments(&ROLE);
     assert_eq!(expired, 1);
 
     // The assignment record is kept: the historical fact that the role was
@@ -420,10 +417,7 @@ fn an_assignment_predating_the_indexes_is_migrated_into_them() {
         "migrate_role_assignment",
         (&ROLE, &holder).into_val(&deployment.env),
     );
-    assert!(deployment
-        .issuers
-        .migrate_role_assignment(&ROLE, &holder)
-        .unwrap());
+    assert!(deployment.issuers.migrate_role_assignment(&ROLE, &holder));
 
     assert_eq!(role_page(&deployment, ROLE, None, None).assignments.len(), 1);
 
@@ -435,10 +429,7 @@ fn an_assignment_predating_the_indexes_is_migrated_into_them() {
         "migrate_role_assignment",
         (&ROLE, &holder).into_val(&deployment.env),
     );
-    assert!(!deployment
-        .issuers
-        .migrate_role_assignment(&ROLE, &holder)
-        .unwrap());
+    assert!(!deployment.issuers.migrate_role_assignment(&ROLE, &holder));
     assert_eq!(role_page(&deployment, ROLE, None, None).assignments.len(), 1);
 }
 
@@ -449,7 +440,7 @@ fn the_role_index_refuses_to_grow_past_its_bound() {
 
     for index in 0..MAX_GOVERNANCE_ROLE_ASSIGNMENTS_PER_ROLE {
         let holder = Address::generate(&deployment.env);
-        grant(&deployment, ROLE, &holder, now, None, index as u8);
+        grant(&deployment, ROLE, &holder, now, None, 0x10 + index as u8);
     }
 
     let overflow = Address::generate(&deployment.env);
@@ -459,7 +450,7 @@ fn the_role_index_refuses_to_grow_past_its_bound() {
         &deployment.admin,
         &deployment.issuers_address,
         "grant_governance_role",
-        (&proposal_id, &ROLE, &overflow, &now, &None).into_val(&deployment.env),
+        (&proposal_id, &ROLE, &overflow, &now, &None::<u32>).into_val(&deployment.env),
     );
     let outcome = deployment.issuers.try_grant_governance_role(
         &proposal_id,
@@ -483,8 +474,9 @@ fn the_principal_index_refuses_to_grow_past_its_bound() {
     let now = deployment.env.ledger().sequence();
     let holder = Address::generate(&deployment.env);
 
-    // The registry knows seven roles; the principal bound is the smaller of
-    // the two, so the grant is refused once the principal holds enough.
+    // `Recovery` is never grantable, so the grantable roles are the other
+    // six. The principal bound is below that, so the grant is refused once
+    // the principal holds enough roles.
     let roles = [
         GovernanceRole::ProtocolPause,
         GovernanceRole::SchemaManagement,
@@ -492,7 +484,6 @@ fn the_principal_index_refuses_to_grow_past_its_bound() {
         GovernanceRole::ProofAdministration,
         GovernanceRole::DependencyManagement,
         GovernanceRole::UpgradeManagement,
-        GovernanceRole::Recovery,
     ];
     for (index, role) in roles.iter().enumerate() {
         let proposal_id = hash(&deployment.env, 0x50 + index as u8);
@@ -501,14 +492,7 @@ fn the_principal_index_refuses_to_grow_past_its_bound() {
             &deployment.admin,
             &deployment.issuers_address,
             "grant_governance_role",
-            (
-                &proposal_id,
-                role,
-                &holder,
-                &now,
-                &None,
-            )
-                .into_val(&deployment.env),
+            (&proposal_id, role, &holder, &now, &None::<u32>).into_val(&deployment.env),
         );
         let outcome = deployment.issuers.try_grant_governance_role(
             &proposal_id,
@@ -528,19 +512,24 @@ fn the_principal_index_refuses_to_grow_past_its_bound() {
 #[test]
 fn a_page_is_bounded_and_defaults_to_the_documented_size() {
     let deployment = Deployment::new();
+    // The default test budget caps the ledger entries one invocation may
+    // touch. A page of fifty assignments reads fifty index entries and fifty
+    // assignment records, which is past that cap but well inside the
+    // protocol's own limits.
+    deployment.env.cost_estimate().budget().reset_unlimited();
     let now = deployment.env.ledger().sequence();
     for index in 0..(MAX_QUERY_LIMIT + 5) {
         let holder = Address::generate(&deployment.env);
-        grant(&deployment, ROLE, &holder, now, None, index as u8);
+        grant(&deployment, ROLE, &holder, now, None, 0x10 + index as u8);
     }
 
     let page = role_page(&deployment, ROLE, None, Some(u32::MAX));
-    assert_eq!(page.assignments.len(), MAX_QUERY_LIMIT as usize);
+    assert_eq!(page.assignments.len(), MAX_QUERY_LIMIT);
 
     let default_page = role_page(&deployment, ROLE, None, None);
     assert_eq!(
         default_page.assignments.len(),
-        DEFAULT_QUERY_LIMIT as usize,
+        DEFAULT_QUERY_LIMIT,
         "a caller that does not ask for a page size gets the default one"
     );
 }
@@ -559,7 +548,7 @@ fn enumeration_requires_the_administrator() {
         &deployment.attacker(),
         &deployment.issuers_address,
         "get_role_assignments",
-        (&ROLE, &None, &None).into_val(&deployment.env),
+        (&ROLE, &None::<Address>, &None::<u32>).into_val(&deployment.env),
     );
     let outcome = deployment
         .issuers

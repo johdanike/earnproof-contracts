@@ -5,14 +5,16 @@
 
 #[allow(unused_imports)]
 use earnproof_shared::{
-    is_interface_compatible, ApprovalQuery, ApprovalStatus, ArchivedProofRecord, ContractError,
-    DisputeActorClass, DisputeFilingAnchor, DisputeFilingEligibility, DisputeFilingPolicy,
-    DisputeFilingStatus, DisputeRecord, DisputeStatus, GenesisRecord, InterfaceVersion,
-    MigrationStatus, PauseScope, ProofError, ProofPayloadRecord, ProofRecord,
+    is_interface_compatible, AdminTransferState, AdminTransferStatus, ApprovalQuery, ApprovalStatus,
+    ArchivedProofRecord, ContractError, DisputeActorClass, DisputeFilingAnchor,
+    DisputeFilingEligibility, DisputeFilingPolicy, DisputeFilingStatus, DisputeRecord,
+    DisputeStatus, GenesisRecord, InterfaceVersion, MigrationStatus, PauseAcknowledgementRecord,
+    PauseAcknowledgementRole, PauseScope, ProofError, ProofPayloadRecord, ProofRecord,
     ProofRegistrationInput, ProofStatus, ProofValidity, ProofValidityDetails, SchemaRateLimit,
     SchemaRateLimitUsage, SubjectNullifier, TtlStatus, UpgradeApproval, UpgradeApprovalMetadata,
-    UpgradeApprovalRecord, UpgradeHistoryRecord, UpgradeReceipt, MAX_MIGRATION_BATCH,
-    MAX_PROOF_BATCH_SIZE, MIGRATION_STATUS_VERSION, TTL_EXTEND_TO_LEDGERS, TTL_THRESHOLD_LEDGERS,
+    UpgradeApprovalRecord, UpgradeHistoryRecord, UpgradeReceipt, ADMIN_TRANSFER_EXPIRY_LEDGERS,
+    MAX_MIGRATION_BATCH, MAX_PAUSE_ACKNOWLEDGEMENT_HISTORY_PAGE, MAX_PROOF_BATCH_SIZE,
+    MIGRATION_STATUS_VERSION, TTL_EXTEND_TO_LEDGERS, TTL_THRESHOLD_LEDGERS,
     UPGRADE_APPROVAL_EXPIRY_LEDGERS, UPGRADE_TIMELOCK_LEDGERS,
 };
 use soroban_sdk::{
@@ -642,7 +644,7 @@ impl ProofRegistryContract {
     /// Registers a proof with an issuer-approved stable proof-type identifier
     /// and no predecessor. Kept as a separate endpoint so callers that do not
     /// participate in supersession retain the upstream registration surface.
-    pub fn register_proof_with_type_identifier(
+    pub fn register_proof_with_type_id(
         env: Env,
         proof_id_hash: BytesN<32>,
         commitment_hash: BytesN<32>,
@@ -996,7 +998,7 @@ impl ProofRegistryContract {
 
     /// Registers a proof with an issuer-approved stable type identifier and
     /// bounded auxiliary payload metadata.
-    pub fn register_proof_with_type_identifier_and_payload(
+    pub fn register_proof_with_type_payload(
         env: Env,
         proof_id_hash: BytesN<32>,
         commitment_hash: BytesN<32>,
@@ -2963,10 +2965,8 @@ mod test {
     use super::{DataKey, ProofRegistryContract, ProofRegistryContractClient};
     use earnproof_shared::{
         AdminTransferState, ContractError, DisputeActorClass, DisputeStatus, PauseScope,
-        ProofError, ProofRecord, ProofStatus, ProofValidity, ADMIN_TRANSFER_EXPIRY_LEDGERS,
-        MAX_PROOF_BATCH_SIZE, TTL_THRESHOLD_LEDGERS, UPGRADE_TIMELOCK_LEDGERS,
-        DisputeActorClass, DisputeStatus, PauseScope, ProofError, ProofRecord, ProofStatus,
-        ProofValidity, SubjectNullifier, MAX_PROOF_BATCH_SIZE, TTL_THRESHOLD_LEDGERS,
+        ProofError, ProofRecord, ProofStatus, ProofValidity, SubjectNullifier,
+        ADMIN_TRANSFER_EXPIRY_LEDGERS, MAX_PROOF_BATCH_SIZE, TTL_THRESHOLD_LEDGERS,
         UPGRADE_TIMELOCK_LEDGERS,
     };
     use issuer_registry::{IssuerRegistryContract, IssuerRegistryContractClient};
@@ -3383,10 +3383,7 @@ mod test {
             &bytes(&env, 11),
             &bytes(&env, 99),
         );
-        issuer_registry.suspend_issuer(
-            &bytes(&env, 10),
-            &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
-        );
+        issuer_registry.suspend_issuer(&BytesN::from_array(&env, &[294u8; 32]), &bytes(&env, 10), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
 
         let result = client.try_register_proof(
             &bytes(&env, 1),
@@ -5018,7 +5015,7 @@ mod test {
             &bytes(&env, 11),
             &bytes(&env, 99),
         );
-        ir.suspend_issuer(&bytes(&env, 10), &bytes(&env, 1));
+        ir.suspend_issuer(&BytesN::from_array(&env, &[295u8; 32]), &bytes(&env, 10), &bytes(&env, 1));
         let batch = make_batch(&env, &[1, 2], 2_000);
 
         let result = client.try_register_proofs_batch(&batch, &inactive_issuer);
@@ -5367,7 +5364,7 @@ mod test {
             &bytes(&env, 11),
             &bytes(&env, 99),
         );
-        issuer_registry.suspend_issuer(&bytes(&env, 10), &bytes(&env, 1));
+        issuer_registry.suspend_issuer(&BytesN::from_array(&env, &[296u8; 32]), &bytes(&env, 10), &bytes(&env, 1));
         let result = client.try_register_proof_with_activation(
             &bytes(&env, 7),
             &bytes(&env, 8),
@@ -6942,7 +6939,7 @@ mod test {
             &bytes(&env, 1),
         );
         // Suspend the issuer registered by setup (issuer_id == bytes 9).
-        issuer_registry.suspend_issuer(&bytes(&env, 9), &bytes(&env, 90));
+        issuer_registry.suspend_issuer(&BytesN::from_array(&env, &[297u8; 32]), &bytes(&env, 9), &bytes(&env, 90));
         assert_eq!(
             client.proof_validity(&proof_id),
             ProofValidity::IssuerInactive
@@ -7072,7 +7069,7 @@ mod test {
             &None,
             &bytes(&env, 1),
         );
-        issuer_registry.suspend_issuer(&bytes(&env, 9), &bytes(&env, 90));
+        issuer_registry.suspend_issuer(&BytesN::from_array(&env, &[298u8; 32]), &bytes(&env, 9), &bytes(&env, 90));
         protocol_config.deprecate_schema_version(&1);
         env.ledger().with_mut(|li| li.timestamp = 3_000);
         assert_eq!(client.proof_validity(&proof_id), ProofValidity::Expired);

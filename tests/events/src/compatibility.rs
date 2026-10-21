@@ -281,19 +281,13 @@ fn issuer_registry_events_match_their_fixtures() {
     }
 
     for event in deployment.capture(|| {
-        deployment.issuers.suspend_issuer(
-            &deployment.issuer_id,
-            &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-        )
+        deployment.issuers.suspend_issuer(&BytesN::from_array(&deployment.env, &[269u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
     }) {
         assert_matches_fixture(&deployment.env, &event);
     }
 
     for event in deployment.capture(|| {
-        deployment.issuers.reactivate_issuer(
-            &deployment.issuer_id,
-            &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-        )
+        deployment.issuers.reactivate_issuer(&BytesN::from_array(&deployment.env, &[271u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
     }) {
         assert_matches_fixture(&deployment.env, &event);
     }
@@ -307,10 +301,7 @@ fn issuer_registry_events_match_their_fixtures() {
     }
 
     for event in deployment.capture(|| {
-        deployment.issuers.revoke_issuer(
-            &deployment.issuer_id,
-            &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
-        )
+        deployment.issuers.revoke_issuer(&BytesN::from_array(&deployment.env, &[270u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
     }) {
         assert_matches_fixture(&deployment.env, &event);
     }

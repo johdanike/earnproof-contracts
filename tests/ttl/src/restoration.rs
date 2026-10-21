@@ -105,7 +105,7 @@ fn a_restored_proof_id_cannot_be_re_registered() {
     // A new registration under an existing identifier must fail even though the
     // entry was archived a moment ago. Anything else would let an archived
     // commitment be replaced.
-    let result = deployment.proofs.try_register_proof_with_type_identifier(
+    let result = deployment.proofs.try_register_proof_with_type_id(
         &proof_id,
         &bytes(&deployment.env, 99),
         &deployment.issuer,
@@ -166,7 +166,7 @@ fn a_long_idle_deployment_recovers_every_contract_on_the_next_call() {
 
     // A registration exercises all three contracts in one invocation.
     let second_proof = bytes(&deployment.env, 7);
-    deployment.proofs.register_proof_with_type_identifier(
+    deployment.proofs.register_proof_with_type_id(
         &second_proof,
         &bytes(&deployment.env, 8),
         &deployment.issuer,
