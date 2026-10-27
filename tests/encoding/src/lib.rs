@@ -10,6 +10,9 @@ mod contract_compatibility;
 mod assurance_levels;
 
 #[cfg(test)]
+mod governance_receipts;
+
+#[cfg(test)]
 mod tests {
     use earnproof_shared::{LEGACY_COMMITMENT_ALGORITHM, SHA256_COMMITMENT_ALGORITHM_V1};
     use sha2::{Digest, Sha256};
@@ -63,6 +66,16 @@ mod tests {
         assert_eq!(
             format!("{versioned:x}"),
             "401f9532c86efbb3b12e265287875c82792657c04834d25b7f6736649ae535f4"
+        );
+    }
+
+    #[test]
+    fn dispute_evidence_hash_vector_is_stable() {
+        let preimage = b"earnproof:dispute-evidence:v1\0evidence-vector";
+        let digest = Sha256::digest(preimage);
+        assert_eq!(
+            format!("{digest:x}"),
+            "a9fe6547768abc8e2cb1cf6faec074cfd99b7bc279c2a9403d7750aa5357000c"
         );
     }
 }

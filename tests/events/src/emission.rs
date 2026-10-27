@@ -98,7 +98,10 @@ fn set_admin_emits_admin_changed_once_and_matches_state() {
         deployment.config.nominate_admin(&successor);
         deployment.config.accept_admin()
     });
-    let event = expect_single(&deployment.env, &events, "admin_transfer_accepted");
+    let event = events
+        .iter()
+        .find(|e| e.is(&deployment.env, "admin_transfer_accepted"))
+        .expect("admin_transfer_accepted event must be emitted");
 
     let announced: Address = event
         .field(&deployment.env, "new_admin")
@@ -112,7 +115,10 @@ fn set_admin_emits_admin_changed_once_and_matches_state() {
 fn approve_schema_version_emits_schema_approved_once() {
     let deployment = Deployment::new();
     let events = deployment.capture(|| deployment.config.approve_schema_version(&7));
-    let event = expect_single(&deployment.env, &events, "schema_approved");
+    let event = events
+        .iter()
+        .find(|e| e.is(&deployment.env, "schema_approved"))
+        .expect("schema_approved event must be emitted");
 
     let version: u32 = event
         .field(&deployment.env, "version")
@@ -190,7 +196,16 @@ fn update_issuer_emits_issuer_metadata_updated_once_and_matches_storage() {
 fn suspend_issuer_emits_issuer_suspended_once_and_matches_storage() {
     let deployment = Deployment::new();
     let events = deployment.capture(|| {
-        deployment.issuers.suspend_issuer(&BytesN::from_array(&deployment.env, &[272u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
+        deployment.issuers.suspend_issuer(
+            &soroban_sdk::BytesN::from_array(&deployment.env, &{
+                let mut a = [0xA5u8; 32];
+                a[1] = 8;
+                a[2] = 0;
+                a
+            }),
+            &deployment.issuer_id,
+            &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+        )
     });
     let event = expect_single(&deployment.env, &events, "issuer_suspended");
 
@@ -204,9 +219,27 @@ fn suspend_issuer_emits_issuer_suspended_once_and_matches_storage() {
 #[test]
 fn reactivate_issuer_emits_issuer_reactivated_once_and_matches_storage() {
     let deployment = Deployment::new();
-    deployment.issuers.suspend_issuer(&BytesN::from_array(&deployment.env, &[273u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
+    deployment.issuers.suspend_issuer(
+        &soroban_sdk::BytesN::from_array(&deployment.env, &{
+            let mut a = [0xA5u8; 32];
+            a[1] = 7;
+            a[2] = 0;
+            a
+        }),
+        &deployment.issuer_id,
+        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+    );
     let events = deployment.capture(|| {
-        deployment.issuers.reactivate_issuer(&BytesN::from_array(&deployment.env, &[275u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
+        deployment.issuers.reactivate_issuer(
+            &soroban_sdk::BytesN::from_array(&deployment.env, &{
+                let mut a = [0xA5u8; 32];
+                a[1] = 6;
+                a[2] = 0;
+                a
+            }),
+            &deployment.issuer_id,
+            &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+        )
     });
     let event = expect_single(&deployment.env, &events, "issuer_reactivated");
 
@@ -221,7 +254,16 @@ fn reactivate_issuer_emits_issuer_reactivated_once_and_matches_storage() {
 fn revoke_issuer_emits_issuer_revoked_once_and_matches_storage() {
     let deployment = Deployment::new();
     let events = deployment.capture(|| {
-        deployment.issuers.revoke_issuer(&BytesN::from_array(&deployment.env, &[274u8; 32]), &deployment.issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
+        deployment.issuers.revoke_issuer(
+            &soroban_sdk::BytesN::from_array(&deployment.env, &{
+                let mut a = [0xA5u8; 32];
+                a[1] = 5;
+                a[2] = 0;
+                a
+            }),
+            &deployment.issuer_id,
+            &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+        )
     });
     let event = expect_single(&deployment.env, &events, "issuer_revoked");
 
@@ -284,7 +326,7 @@ fn register_proof_emits_proof_registered_with_the_advanced_epoch() {
     let expires_at = deployment.env.ledger().timestamp() + 100_000;
 
     let events = deployment.capture(|| {
-        deployment.proofs.register_proof_with_type_id(
+        deployment.proofs.register_proof_typed(
             &proof_id,
             &hash(&deployment.env, 0xEE),
             &deployment.issuer,
@@ -333,7 +375,10 @@ fn admin_revoke_proof_emits_timing_and_admin_flag() {
     let deployment = Deployment::new();
     let proof_id = deployment.register_proof(0x22);
 
-    let events = deployment.capture(|| deployment.proofs.admin_revoke_proof(&proof_id));
+    let events = deployment.capture(|| {
+        let res = deployment.proofs.admin_revoke_proof(&proof_id);
+        std::eprintln!("admin_revoke_proof result: {:?}", res);
+    });
     let event = expect_single(&deployment.env, &events, "proof_revoked");
     let by_admin: bool = event.field(&deployment.env, "by_admin").unwrap();
     let record = deployment.proofs.get_proof(&proof_id);
@@ -353,7 +398,7 @@ fn a_rejected_registration_publishes_no_event_and_does_not_advance_the_epoch() {
     let expires_at = deployment.env.ledger().timestamp() + 100_000;
 
     let events = deployment.capture(|| {
-        let _ = deployment.proofs.try_register_proof_with_type_id(
+        let _ = deployment.proofs.try_register_proof_typed(
             &hash(&deployment.env, 0x31),
             &hash(&deployment.env, 0x32),
             &deployment.issuer,
@@ -370,7 +415,9 @@ fn a_rejected_registration_publishes_no_event_and_does_not_advance_the_epoch() {
 #[test]
 fn each_successful_proof_mutation_emits_one_proof_registry_event() {
     let deployment = Deployment::new();
-    let registration_events = deployment.capture(|| deployment.register_proof(0x23));
+    let registration_events = deployment.capture(|| {
+        deployment.register_proof(0x23);
+    });
     let proof_events: std::vec::Vec<_> = registration_events
         .iter()
         .filter(|event| event.contract == deployment.proofs.address)

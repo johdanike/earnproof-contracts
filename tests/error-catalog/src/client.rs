@@ -137,14 +137,26 @@ fn an_automatic_retry_loop_only_repeats_operator_action_codes() {
         retryable,
         std::vec![
             "NotInitialized",
+            "AdminNominationExpired",
             "ProtocolPaused",
+            "NoUpgradeApproval",
+            "UpgradeTimelockNotElapsed",
+            "UpgradeApprovalExpired",
+            "ThresholdApprovalRequired",
+            "ApprovalProposalExpired",
+            "InsufficientApprovals",
             "IssuerInactive",
             "IssuerCapacityExceeded",
-            "InvalidSchemaVersion",
+            "SequenceOverflow",
             "SchemaVersionNotApproved",
             "ContractPaused",
             "IssuerInactive",
             "UnsupportedSchema",
+            "UnsupportedProofType",
+            "ProofCapacityReached",
+            "ProofAccountingUnavailable",
+            "ProofCountOverflow",
+            "UnsupportedNullifierDomain",
         ]
     );
 }

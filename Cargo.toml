@@ -21,6 +21,7 @@ members = [
   "tests/address-validation",
   "tests/supersession",
   "tests/compatibility",
+  "tests/migrations",
   "fuzz"
 ]
 resolver = "2"

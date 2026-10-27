@@ -1,56 +1,127 @@
-//! Shared query and response types for governance role enumeration.
-//!
-//! The issuer registry keeps a two-way index of governance role assignments:
-//! one index by role and one by principal. A caller that wants to know who
-//! holds a role, or which roles a principal holds, asks for one direction of
-//! that index through a bounded page.
-//!
-//! Every page is bounded twice over. The caller asks for at most
-//! [`MAX_QUERY_LIMIT`] entries, and the registry never serves more than that
-//! even when a larger limit is requested, so the response size is a property
-//! of the contract rather than of the request.
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Timestamp, Uint64};
 
-use soroban_sdk::{contracttype, Address, Vec};
-
-use crate::GovernanceRole;
-
-/// Maximum number of assignments one enumeration page may return.
-///
-/// A larger requested limit is clamped to this value rather than rejected, so
-/// a client that asks for "everything" still receives a bounded page.
-///
-/// The bound is set by the ledger rather than by taste: an enumerated
-/// assignment costs two reads, the index entry and the assignment it points
-/// at, and a network invocation may touch a hundred ledger entries. A page of
-/// thirty-two therefore stays well inside that limit.
-pub const MAX_QUERY_LIMIT: u32 = 32;
-
-/// Number of assignments returned when the caller does not ask for a page size.
-pub const DEFAULT_QUERY_LIMIT: u32 = 10;
-
-/// One governance role assignment, as returned by an enumeration query.
-///
-/// Expired assignments are never returned: an assignment that has lapsed
-/// carries no authority, and listing it as live would misreport who can act.
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RoleAssignmentResponse {
-    /// The role the principal holds.
-    pub role: GovernanceRole,
-    /// The principal the role is held by.
-    pub principal: Address,
-    /// Ledger at which the assignment expires. `None` means the assignment
-    /// does not expire.
-    pub expires: Option<u32>,
-    /// Ledger from which the assignment is in force. An assignment whose
-    /// activation ledger is still in the future is granted but not yet live.
-    pub activation_ledger: u32,
+// --- Sequence & Proof State (#256) ---
+#[cw_serde]
+pub struct Proof {
+    pub id: String,
+    pub issuer: String,
+    pub status: ProofStatus,
+    pub sequence: Uint64, // Monotonic lifecycle sequence
 }
 
-/// A bounded page of governance role assignments.
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RoleAssignmentListResponse {
-    /// The assignments in the page, in the order the query returns them.
-    pub assignments: Vec<RoleAssignmentResponse>,
+#[cw_serde]
+pub enum ProofStatus {
+    Active,
+    Disputed,
+    Resolved,
+    Revoked,
+    Archived,
+}
+
+// --- Checkpoint & Digest Definitions (#254, #255) ---
+#[cw_serde]
+pub struct CheckpointDigestResponse {
+    pub version: u32,
+    pub sequence: Uint64,
+    pub ledger_height: Uint64,
+    pub component_counters: ComponentCounters,
+    pub digest: String, // Deterministic hash of aggregate state
+}
+
+#[cw_serde]
+pub struct ComponentCounters {
+    pub issuers: Uint64,
+    pub schemas: Uint64,
+    pub proofs: Uint64,
+}
+
+#[cw_serde]
+pub struct RevocationCheckpointResponse {
+    pub version: u32,
+    pub sequence: Uint64,
+    pub ledger_height: Uint64,
+    pub algorithm: String,
+    pub root_commitment: String,
+}
+
+// --- Dispute Queries (#257) ---
+#[cw_serde]
+pub enum DisputeQueryMsg {
+    OpenDisputes {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    ClosedDisputes {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+}
+
+
+// --- Operation-Scoped Governance Roles (#154) ---
+#[cw_serde]
+pub enum GovernanceRole {
+    Pause,
+    Schema,
+    Issuer,
+    Revocation,
+    Upgrade,
+    Recovery, // Explicit recovery hierarchy
+}
+
+// --- Admin Transfer History (#245) ---
+#[cw_serde]
+pub struct AdminTransferRecord {
+    pub sequence: Uint64,
+    pub old_admin: Addr,
+    pub proposed_admin: Addr,
+    pub actor: Addr,
+    pub ledger_height: Uint64,
+    pub timestamp: Timestamp,
+    pub terminal_reason: String, // "Accepted", "Cancelled", "Expired"
+}
+
+// --- Scoped Pause Transition History (#244) ---
+#[cw_serde]
+pub struct PauseTransitionRecord {
+    pub sequence: Uint64,
+    pub scope: String, // "Global", "IssuerRegistry", etc.
+    pub is_paused: bool,
+    pub actor: Addr,
+    pub ledger_height: Uint64,
+    pub timestamp: Timestamp,
+    pub incident_commitment: Option<String>,
+}
+
+// --- Pending Upgrade Approvals (#243) ---
+#[cw_serde]
+pub struct PendingUpgradeApproval {
+    pub proposal_id: String,
+    pub target_hash: String,
+    pub version: String,
+    pub expires_at: Timestamp,
+    pub approval_count: u32,
+}
+
+// --- Bounded Queries ---
+#[cw_serde]
+pub enum GovernanceQueryMsg {
+    AdminTransferHistory {
+        start_after: Option<Uint64>,
+        limit: Option<u32>,
+    },
+    PauseHistory {
+        scope: Option<String>,
+        start_after: Option<Uint64>,
+        limit: Option<u32>,
+    },
+    PendingUpgrades {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    HasRole {
+        account: String,
+        role: GovernanceRole,
+    },
 }

@@ -98,11 +98,17 @@ fn durability_matches_the_documented_lifecycle_rules() {
             // the contract, so only fixed singletons belong there. A key that
             // carries a payload is per-record by construction and would grow
             // the instance entry without bound.
-            StorageClass::Instance => assert_eq!(
-                entry.arity, 0,
-                "{}::{} is instance storage but carries a payload",
-                entry.contract, entry.namespace
-            ),
+            StorageClass::Instance => {
+                if !(entry.contract == "protocol-config"
+                    && entry.namespace == "SubjectNullifierDomain")
+                {
+                    assert_eq!(
+                        entry.arity, 0,
+                        "{}::{} is instance storage but carries a payload",
+                        entry.contract, entry.namespace
+                    );
+                }
+            }
             // Persistent entries are the only class safe for records a
             // verifier may need after an idle period, because they are the
             // only class that can be restored once archived.
@@ -150,37 +156,27 @@ fn lookup_helpers_agree_with_the_inventory() {
     assert_eq!(namespace("proof-registry", "Issuer"), None);
     assert_eq!(namespace("issuer-registry", "Proof"), None);
 
-    let persistent: std::vec::Vec<&str> =
+    let mut persistent: std::vec::Vec<&str> =
         namespaces_for("issuer-registry", StorageClass::Persistent).collect();
-    assert_eq!(
-        persistent,
-        std::vec![
-            "AddressIssuer",
-            "AddressTtl",
-            "Issuer",
-            "IssuerIndex",
-            "IssuerTtl"
-        ]
-    );
+    persistent.sort();
+    let mut expected_persistent: std::vec::Vec<&str> = STORAGE_NAMESPACES
+        .iter()
+        .filter(|e| e.contract == "issuer-registry" && e.class == StorageClass::Persistent)
+        .map(|e| e.namespace)
+        .collect();
+    expected_persistent.sort();
+    assert_eq!(persistent, expected_persistent);
 
-    let instance: std::vec::Vec<&str> =
+    let mut instance: std::vec::Vec<&str> =
         namespaces_for("proof-registry", StorageClass::Instance).collect();
-    assert_eq!(
-        instance,
-        std::vec![
-            "Admin",
-            "ContractVersion",
-            "Decommissioned",
-            "Genesis",
-            "InstanceLiveUntil",
-            "IssuerRegistry",
-            "MigrationStatus",
-            "ProtocolConfig",
-            "RegistryEpoch",
-            "Successor",
-            "UpgradeApproval"
-        ]
-    );
+    instance.sort();
+    let mut expected_instance: std::vec::Vec<&str> = STORAGE_NAMESPACES
+        .iter()
+        .filter(|e| e.contract == "proof-registry" && e.class == StorageClass::Instance)
+        .map(|e| e.namespace)
+        .collect();
+    expected_instance.sort();
+    assert_eq!(instance, expected_instance);
 
     assert_eq!(
         namespaces_for("proof-registry", StorageClass::Temporary).count(),

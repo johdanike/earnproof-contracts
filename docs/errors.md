@@ -21,11 +21,11 @@ Backend mapping guidance, including how to handle a code this document does not 
 | Range | Domain | Enum |
 |---|---|---|
 | 1-99 | common | `ContractError` |
-| 100-199 | protocol-config | none yet; reserved |
+| 100-199 | protocol-config | `ProtocolConfigError` |
 | 200-299 | issuer-registry | `IssuerError` |
 | 300-399 | proof-registry | `ProofError` |
 
-The protocol-config range is allocated but empty: that contract returns common errors only. The range stays reserved so a future protocol-config error cannot collide with anything.
+The protocol-config range holds the commitment hash algorithm registry errors (100-105). Every other protocol-config failure still returns a common error.
 
 **Status** distinguishes a code that some contract path actually returns from one that is declared and reserved but produced by nothing in this release. Eight codes are currently reserved, and the distinction matters in practice: see the ambiguity note below before writing a client that waits for one of them.
 
@@ -90,17 +90,24 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 | 62 | `IncompatibleInterfaceVersion` | `ContractError` | common | returned | after-caller-change | 400 |
 | 63 | `AdminNominationExpired` | `ContractError` | common | returned | after-operator-action | 409 |
 | 64 | `BatchTooLarge` | `ContractError` | common | returned | after-caller-change | 400 |
+| 65 | `DeploymentIdentityMismatch` | `ContractError` | common | returned | after-operator-action | 409 |
 | 80 | `ProtocolPaused` | `ContractError` | common | reserved | after-operator-action | 503 |
-| 90 | `NoUpgradeApproval` | `ContractError` | common | returned | after-operator-action | 403 |
+| 90 | `NoUpgradeApproval` | `ContractError` | common | returned | after-operator-action | 412 |
 | 91 | `UpgradeTimelockNotElapsed` | `ContractError` | common | returned | after-operator-action | 409 |
 | 92 | `UpgradeApprovalExpired` | `ContractError` | common | returned | after-operator-action | 409 |
 | 93 | `WasmHashMismatch` | `ContractError` | common | returned | after-caller-change | 400 |
 | 94 | `InvalidTimingConfig` | `ContractError` | common | returned | after-caller-change | 400 |
-| 95 | `ThresholdApprovalRequired` | `ContractError` | common | returned | after-operator-action | 403 |
+| 95 | `ThresholdApprovalRequired` | `ContractError` | common | returned | after-operator-action | 412 |
 | 96 | `ApprovalProposalNotFound` | `ContractError` | common | returned | after-caller-change | 404 |
 | 97 | `ApprovalProposalExpired` | `ContractError` | common | returned | after-operator-action | 409 |
-| 98 | `InsufficientApprovals` | `ContractError` | common | returned | after-operator-action | 403 |
+| 98 | `InsufficientApprovals` | `ContractError` | common | returned | after-operator-action | 412 |
 | 99 | `InvalidApprovalPolicy` | `ContractError` | common | returned | after-caller-change | 400 |
+| 100 | `HashAlgorithmNotFound` | `ProtocolConfigError` | protocol-config | returned | after-caller-change | 404 |
+| 101 | `InvalidHashAlgorithmTransition` | `ProtocolConfigError` | protocol-config | returned | never | 409 |
+| 102 | `HashAlgorithmDeprecated` | `ProtocolConfigError` | protocol-config | returned | after-caller-change | 400 |
+| 103 | `InvalidHashAlgorithmId` | `ProtocolConfigError` | protocol-config | returned | after-caller-change | 400 |
+| 104 | `HashAlgorithmNotActive` | `ProtocolConfigError` | protocol-config | returned | after-operator-action | 409 |
+| 105 | `RegistryUnavailable` | `ProtocolConfigError` | protocol-config | returned | after-operator-action | 503 |
 | 200 | `IssuerAlreadyRegistered` | `IssuerError` | issuer-registry | returned | never | 409 |
 | 201 | `IssuerNotFound` | `IssuerError` | issuer-registry | returned | after-caller-change | 404 |
 | 202 | `IssuerAddressAlreadyRegistered` | `IssuerError` | issuer-registry | returned | never | 409 |
@@ -114,6 +121,8 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 | 210 | `ReactivationCooldownActive` | `IssuerError` | issuer-registry | returned | after-caller-change | 400 |
 | 211 | `InvalidMetadataCommitment` | `IssuerError` | issuer-registry | returned | after-caller-change | 400 |
 | 212 | `BatchTooLarge` | `IssuerError` | issuer-registry | returned | after-caller-change | 400 |
+| 213 | `InvalidAssuranceLevel` | `IssuerError` | issuer-registry | returned | after-caller-change | 400 |
+| 214 | `SequenceOverflow` | `IssuerError` | issuer-registry | returned | after-operator-action | 409 |
 | 300 | `ProofAlreadyRegistered` | `ProofError` | proof-registry | returned | never | 409 |
 | 301 | `ProofNotFound` | `ProofError` | proof-registry | returned | after-caller-change | 404 |
 | 302 | `ProofAlreadyRevoked` | `ProofError` | proof-registry | returned | never | 400 |
@@ -132,17 +141,24 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 | 315 | `DisputeNotOpen` | `ProofError` | proof-registry | returned | never | 400 |
 | 316 | `UnsupportedProofType` | `ProofError` | proof-registry | returned | after-operator-action | 400 |
 | 317 | `InvalidProofContext` | `ProofError` | proof-registry | reserved | after-caller-change | 400 |
-| 318 | `ProofCapacityReached` | `ProofError` | proof-registry | returned | after-operator-action | 409 |
-| 319 | `ProofAccountingUnavailable` | `ProofError` | proof-registry | returned | after-operator-action | 503 |
-| 320 | `ProofCountOverflow` | `ProofError` | proof-registry | returned | after-operator-action | 503 |
+| 318 | `ProofCapacityReached` | `ProofError` | proof-registry | reserved | after-operator-action | 409 |
+| 319 | `ProofAccountingUnavailable` | `ProofError` | proof-registry | reserved | after-operator-action | 503 |
+| 320 | `ProofCountOverflow` | `ProofError` | proof-registry | reserved | after-operator-action | 503 |
 | 321 | `CyclicSupersession` | `ProofError` | proof-registry | returned | never | 400 |
 | 322 | `CrossIssuerSupersession` | `ProofError` | proof-registry | returned | never | 403 |
 | 323 | `PredecessorNotFound` | `ProofError` | proof-registry | returned | after-caller-change | 404 |
 | 324 | `TooManySuccessors` | `ProofError` | proof-registry | returned | never | 400 |
 | 325 | `DisputeFilingWindowClosed` | `ProofError` | proof-registry | returned | never | 400 |
 | 326 | `UnsupportedNullifierDomain` | `ProofError` | proof-registry | returned | after-operator-action | 400 |
+| 327 | `ConsentReceiptAlreadyCommitted` | `ProofError` | proof-registry | returned | never | 409 |
+| 328 | `ConsentAlreadyWithdrawn` | `ProofError` | proof-registry | returned | never | 409 |
+| 329 | `ConsentWithdrawn` | `ProofError` | proof-registry | returned | never | 409 |
+| 330 | `StaleConsentWithdrawalSequence` | `ProofError` | proof-registry | returned | after-caller-change | 409 |
+| 331 | `InvalidConsentWithdrawalReason` | `ProofError` | proof-registry | returned | never | 400 |
+| 332 | `UnsupportedEventDomain` | `ProofError` | proof-registry | returned | never | 400 |
 
 ## Details
+
 ### 1 - `AlreadyInitialized`
 
 - Enum: `ContractError`
@@ -264,6 +280,17 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 - Suggested HTTP status: 400
 - Client message: "Request batch is too large"
 
+### 65 - `DeploymentIdentityMismatch`
+
+- Enum: `ContractError`
+- Domain: common
+- Status: returned
+- Retry: after-operator-action
+- Cause: A dependency, or the pinned deployment domain, reports a network or deployment domain different from the consumer's identity.
+- Remediation: Bind a dependency from the same deployment domain, or set the matching domain on the dependency, then retry.
+- Suggested HTTP status: 409
+- Client message: "Dependency belongs to a different deployment"
+
 ### 80 - `ProtocolPaused`
 
 - Enum: `ContractError`
@@ -283,7 +310,7 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 - Retry: after-operator-action
 - Cause: An upgrade was attempted without a recorded approval.
 - Remediation: Have the authorized admin approve the target WASM and version before retrying.
-- Suggested HTTP status: 403
+- Suggested HTTP status: 412
 - Client message: "No upgrade approval was found"
 
 ### 91 - `UpgradeTimelockNotElapsed`
@@ -334,18 +361,18 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ContractError`
 - Domain: common
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: A critical action requires a threshold-approved proposal instead of direct execution.
 - Remediation: Create a proposal for the canonical action, collect the configured signer threshold, and execute that proposal.
-- Suggested HTTP status: 403
+- Suggested HTTP status: 412
 - Client message: "Threshold approval is required"
 
 ### 96 - `ApprovalProposalNotFound`
 
 - Enum: `ContractError`
 - Domain: common
-- Status: returned
+- Status: reserved
 - Retry: after-caller-change
 - Cause: The requested critical-action proposal does not exist or has already been consumed.
 - Remediation: Use an existing proposal identifier for this contract, or create a new proposal.
@@ -356,7 +383,7 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ContractError`
 - Domain: common
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: The critical-action proposal reached its expiry ledger before execution.
 - Remediation: Create a new proposal and collect approvals again.
@@ -367,23 +394,89 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ContractError`
 - Domain: common
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: The proposal has fewer unique authorized signer approvals than its policy threshold.
 - Remediation: Collect approvals from additional configured signers before execution.
-- Suggested HTTP status: 403
+- Suggested HTTP status: 412
 - Client message: "Approval threshold has not been reached"
 
 ### 99 - `InvalidApprovalPolicy`
 
 - Enum: `ContractError`
 - Domain: common
-- Status: returned
+- Status: reserved
 - Retry: after-caller-change
 - Cause: The approval policy has an invalid threshold, signer count, or duplicate signer.
 - Remediation: Configure a non-empty unique signer set with a threshold between one and the signer count.
 - Suggested HTTP status: 400
 - Client message: "Invalid approval policy"
+
+### 100 - `HashAlgorithmNotFound`
+
+- Enum: `ProtocolConfigError`
+- Domain: protocol-config
+- Status: returned
+- Retry: after-caller-change
+- Cause: No commitment hash algorithm is registered under the supplied identifier.
+- Remediation: Use an identifier returned by the algorithm registry, or ask governance to approve it first.
+- Suggested HTTP status: 404
+- Client message: "Hash algorithm not found"
+
+### 101 - `InvalidHashAlgorithmTransition`
+
+- Enum: `ProtocolConfigError`
+- Domain: protocol-config
+- Status: returned
+- Retry: never
+- Cause: The lifecycle step is not allowed from the algorithm current status, or the identifier is already registered.
+- Remediation: Read the algorithm record and request only the next valid step: approve, then activate, then deprecate.
+- Suggested HTTP status: 409
+- Client message: "Invalid hash algorithm transition"
+
+### 102 - `HashAlgorithmDeprecated`
+
+- Enum: `ProtocolConfigError`
+- Domain: protocol-config
+- Status: returned
+- Retry: after-caller-change
+- Cause: A new commitment was requested with a deprecated hash algorithm. Deprecated algorithms stay verifiable but cannot create commitments.
+- Remediation: Create the commitment with an active algorithm. Verification of existing commitments is unaffected.
+- Suggested HTTP status: 400
+- Client message: "Hash algorithm is deprecated"
+
+### 103 - `InvalidHashAlgorithmId`
+
+- Enum: `ProtocolConfigError`
+- Domain: protocol-config
+- Status: returned
+- Retry: after-caller-change
+- Cause: Hash algorithm identifier zero is reserved and cannot be registered.
+- Remediation: Use a non-zero algorithm identifier.
+- Suggested HTTP status: 400
+- Client message: "Invalid hash algorithm identifier"
+
+### 104 - `HashAlgorithmNotActive`
+
+- Enum: `ProtocolConfigError`
+- Domain: protocol-config
+- Status: returned
+- Retry: after-operator-action
+- Cause: The hash algorithm is approved but governance has not activated it yet.
+- Remediation: Wait for governance to activate the algorithm before creating commitments with it.
+- Suggested HTTP status: 409
+- Client message: "Hash algorithm is not active"
+
+### 105 - `RegistryUnavailable`
+
+- Enum: `ProtocolConfigError`
+- Domain: protocol-config
+- Status: returned
+- Retry: after-operator-action
+- Cause: The contract has no administrator or has been decommissioned, so the algorithm registry cannot change.
+- Remediation: Initialize the contract, or use the successor deployment if this one is decommissioned.
+- Suggested HTTP status: 503
+- Client message: "Registry unavailable"
 
 ### 200 - `IssuerAlreadyRegistered`
 
@@ -471,7 +564,7 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 - Cause: Issuer registration, rotation, or lifecycle input contains an invalid address or reserved empty commitment.
 - Remediation: Supply a canonical issuer address and nonzero commitment values required by the selected operation.
 - Suggested HTTP status: 400
-- Client message: "Invalid issuer address or commitment"
+- Client message: "Invalid issuer address or input"
 
 ### 208 - `IssuerCapacityExceeded`
 
@@ -527,6 +620,28 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 - Remediation: Split the request into batches of at most MAX_ISSUER_STATUS_BATCH entries.
 - Suggested HTTP status: 400
 - Client message: "Request batch is too large"
+
+### 213 - `InvalidAssuranceLevel`
+
+- Enum: `IssuerError`
+- Domain: issuer-registry
+- Status: returned
+- Retry: after-caller-change
+- Cause: An issuer assurance change used an unsupported commitment version or a tier outside the documented 1-255 range.
+- Remediation: Use commitment version 1 and a public assurance tier from 1 through 255.
+- Suggested HTTP status: 400
+- Client message: "Invalid issuer assurance level"
+
+### 214 - `SequenceOverflow`
+
+- Enum: `IssuerError`
+- Domain: issuer-registry
+- Status: returned
+- Retry: after-operator-action
+- Cause: A per-issuer monotonic sequence reached its maximum value and cannot advance.
+- Remediation: Do not retry the transition unchanged. Governance must migrate the sequence representation before another lifecycle change.
+- Suggested HTTP status: 409
+- Client message: "Issuer sequence cannot advance"
 
 ### 300 - `ProofAlreadyRegistered`
 
@@ -730,7 +845,7 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ProofError`
 - Domain: proof-registry
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: The proof registry has reached its configured capacity.
 - Remediation: An operator must increase the proof capacity or archive eligible proofs before registration can continue.
@@ -741,7 +856,7 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ProofError`
 - Domain: proof-registry
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: Stored proof counts are missing or inconsistent, so an accounting operation cannot proceed safely.
 - Remediation: Reconcile proof counts and verify the reported counters before retrying the operation.
@@ -752,7 +867,7 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ProofError`
 - Domain: proof-registry
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: A proof count cannot be incremented without overflowing its storage type.
 - Remediation: Reconcile the proof counters or raise the configured capacity before registering more proofs.
@@ -807,10 +922,10 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ProofError`
 - Domain: proof-registry
-- Status: returned
+- Status: reserved
 - Retry: never
 - Cause: The governed dispute filing window has not opened, has closed, or its lifecycle anchor is unavailable.
-- Remediation: Read `get_dispute_filing_eligibility` before filing and do not replay a request outside its reported half-open window.
+- Remediation: Read get_dispute_filing_eligibility before filing and do not replay a request outside its reported half-open window.
 - Suggested HTTP status: 400
 - Client message: "Dispute filing window is closed"
 
@@ -818,11 +933,77 @@ A Soroban contract error is a type and a number. It carries no message, no paylo
 
 - Enum: `ProofError`
 - Domain: proof-registry
-- Status: returned
+- Status: reserved
 - Retry: after-operator-action
 - Cause: The proof supplied a subject-nullifier domain version that protocol governance does not support.
-- Remediation: Query `get_nullifier_domain_versions` and submit a nullifier derived under a currently supported version.
+- Remediation: Query get_nullifier_domain_versions and submit a nullifier derived under a currently supported version.
 - Suggested HTTP status: 400
 - Client message: "Unsupported nullifier domain version"
+
+### 327 - `ConsentReceiptAlreadyCommitted`
+
+- Enum: `ProofError`
+- Domain: proof-registry
+- Status: returned
+- Retry: never
+- Cause: The same disclosure-consent receipt commitment was already recorded for this proof, policy, receipt version, and receipt hash.
+- Remediation: Treat the receipt as already anchored. Query has_consent_receipt_commitment instead of replaying the commit.
+- Suggested HTTP status: 409
+- Client message: "Consent receipt is already committed"
+
+### 328 - `ConsentAlreadyWithdrawn`
+
+- Enum: `ProofError`
+- Domain: proof-registry
+- Status: returned
+- Retry: never
+- Cause: Consent for this proof and policy was already withdrawn; a withdrawal is final and recorded once.
+- Remediation: Treat consent as withdrawn. Query is_consent_withdrawn instead of resubmitting.
+- Suggested HTTP status: 409
+- Client message: "Consent is already withdrawn"
+
+### 329 - `ConsentWithdrawn`
+
+- Enum: `ProofError`
+- Domain: proof-registry
+- Status: returned
+- Retry: never
+- Cause: A disclosure-consent receipt cannot be committed because consent for this proof and policy was withdrawn.
+- Remediation: Do not anchor new receipts for this pair. A new proof or policy hash is required for fresh consent.
+- Suggested HTTP status: 409
+- Client message: "Consent has been withdrawn"
+
+### 330 - `StaleConsentWithdrawalSequence`
+
+- Enum: `ProofError`
+- Domain: proof-registry
+- Status: returned
+- Retry: after-caller-change
+- Cause: The expected withdrawal sequence does not match the next sequence, so the request was replayed or raced by another withdrawal.
+- Remediation: Re-read get_consent_withdrawal_count, then resubmit with the next sequence if the withdrawal is still needed.
+- Suggested HTTP status: 409
+- Client message: "Withdrawal request is out of date"
+
+### 331 - `InvalidConsentWithdrawalReason`
+
+- Enum: `ProofError`
+- Domain: proof-registry
+- Status: returned
+- Retry: never
+- Cause: The withdrawal reason code is outside the published version-1 range 1 to 4.
+- Remediation: Use a published reason code. Reason text is never accepted on chain.
+- Suggested HTTP status: 400
+- Client message: "Withdrawal reason is not valid"
+
+### 332 - `UnsupportedEventDomain`
+
+- Enum: `ProofError`
+- Domain: proof-registry
+- Status: returned
+- Retry: never
+- Cause: The contract does not report a sequence range for the requested event domain.
+- Remediation: Query the domain on the contract that emits it: config-change and pause acknowledgements on protocol-config, consent withdrawals on proof-registry.
+- Suggested HTTP status: 400
+- Client message: "Event domain is not supported"
 
 <!-- END GENERATED -->

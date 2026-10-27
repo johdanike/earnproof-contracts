@@ -358,7 +358,63 @@ Issuer authorization is required for normal proof registration and revocation. A
 ### Proof Registry Events
 
 The proof-registry contract currently emits no typed events. Proof lifecycle changes (registration, revocation) are stored on-chain via `ProofRecord` updates but are not announced via Soroban event topics. Future contract versions are expected to add events for proof registration and revocation. See [tests/fixtures/events/proof-registry/](../tests/fixtures/events/proof-registry/).
-Every successful mutation emits exactly one typed event. Failed, unauthorized, duplicate, expired, or paused-protocol operations emit no success event.
+Every successful mutation emits its documented typed event or events. Failed,
+unauthorized, duplicate, expired, or paused-protocol operations emit no success
+event.
+
+#### Issuer policy and issuance configuration snapshots
+
+`set_issuer_policy_commitments` preserves the current commitment getter and
+adds a monotonic per-issuer version. `get_issuer_policy_version` returns `0`
+for a legacy issuer that has not yet received a versioned update;
+`get_issuer_policy_commitment_at_version` and `get_issuer_policy_history`
+query the bounded 16-version retained history. Each history record contains
+only the two opaque commitments, version, effective ledger, and effective
+timestamp. Failed updates do not advance the version or emit an event.
+
+Successful proof registration captures the proof, issuer-registry, and
+protocol-config identities/digests, issuer policy version, and versioned
+schema-policy digest in `ProofConfigurationCommitments`. The immutable
+sidecar also retains the opaque issuer policy commitment pair, so the version
+remains auditable after a bounded history slot is evicted. For legacy issuers
+with policy version `0`, the pair uses an all-zero encoding-version/hash
+sentinel. It is queryable
+through `get_proof_configuration_commitments` and is
+included in the existing registration event payload, so the invocation still
+emits exactly one registration event. Legacy proofs return `None`.
+Registration requires compatible issuer/protocol interfaces and available
+versioned schema digest data.
+
+#### Dispute evidence commitments
+
+`append_dispute_evidence(proof_id_hash, submitter, algorithm, evidence_hash)`
+accepts only an algorithm identifier and fixed-size evidence hash. The
+submitter must be the dispute opener, proof issuer, or registry admin and
+must authorize the call. Only an open dispute accepts additions; each dispute
+round retains at most 16 entries. `get_dispute_sequence` returns the active
+round identifier, which is supplied to the bounded cursor-based
+`get_dispute_evidence_history` query. Records expose submitter role, algorithm,
+sequence, ledger, and timestamp. Evidence bytes, URLs, and claim text are not
+part of the contract interface.
+
+#### Dispute decisions
+
+`resolve_dispute(proof_id_hash, reason)` and
+`reject_dispute(proof_id_hash, reason)` require a
+`DisputeDecisionReason { version: 1, code, reason_commitment }`. Version 1 uses
+code `1` for resolution and codes `2` through `5` for rejection (claim
+unsubstantiated, duplicate, out of scope, and procedural). The optional
+`reason_commitment` is an opaque 32-byte commitment to rationale held off
+chain; callers must never submit evidence or free-form reason text.
+
+Successful decisions retain the legacy `dispute_resolved` or
+`dispute_rejected` event and then emit `dispute_decision_committed_v2` with the
+reason version/code, optional commitment, resolver address/role, ledger, and
+timestamp. `get_dispute_decision_metadata(proof_id_hash)` returns `None` for
+open, withdrawn, and legacy terminal disputes. New dispute records clear any
+prior decision sidecar. Existing serialized `DisputeRecord` values remain
+readable without migration, but the required decision arguments change the
+invocation ABI and require coordinated backend deployment.
 
 All payloads contain only public hashes, addresses, schema version, timestamps, and expiration. No payment amounts, wallet history, personal names, or raw credential data are included.
 
@@ -433,3 +489,22 @@ metadata_hash = sha256(canonical_public_issuer_metadata)
 Do not send exact income, raw transaction lists, personal names, emails, or full wallet history to contracts. Store only hashes, status, schema version, issuer address, expiration, and timestamps.
 
 For the complete list of every storage key, TTL policy, lifecycle event, and privacy boundary see the [Storage Model](./storage-model.md) reference.
+
+
+### Revocation Checkpoints
+
+Indexers can verify revocation drift using the `/api/v1/registry/revocation-checkpoint` query. 
+The checkpoint commitment is a deterministic Sha256 chained hash.
+
+**Verification Algorithm (Pseudocode):**
+```python
+def verify_checkpoint(events, expected_root):
+    current_root = ""
+    for event in events:
+        if event.type in ["revoke", "archive"]:
+            hasher = sha256()
+            hasher.update(current_root)
+            hasher.update(event.proof_id)
+            hasher.update(event.ledger_height)
+            current_root = hasher.hexdigest()
+    assert current_root == expected_root

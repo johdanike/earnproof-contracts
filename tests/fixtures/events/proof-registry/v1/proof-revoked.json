@@ -3,7 +3,9 @@
   "contract": "proof-registry",
   "contract_version": "0.1.0",
   "schema_version": 1,
-  "topics": ["proof_revoked"],
+  "topics": [
+    "proof_revoked"
+  ],
   "payload": {
     "proof_id_hash": {
       "type": "BytesN<32>",
@@ -29,9 +31,24 @@
       "type": "u32",
       "description": "Registry epoch after this revocation committed.",
       "example": 2
+    },
+    "policy_version": {
+      "type": "u32",
+      "description": "Authority policy version in force when the revocation committed. Later policy changes never alter it.",
+      "example": 1
+    },
+    "actor_role": {
+      "type": "RevocationActorRole",
+      "description": "Role that authorized the revocation: Issuer or Admin.",
+      "example": "Issuer"
+    },
+    "authorization_domain": {
+      "type": "BytesN<32>",
+      "description": "Hash binding the registry, actor role and policy version that authorized the revocation.",
+      "example": "0x0202020202020202020202020202020202020202020202020202020202020202"
     }
   },
   "emitted_by": "revoke_proof, admin_revoke_proof",
-  "description": "Published once a revocation commits, whether initiated by the issuer or the admin. A repeated revocation attempt fails before this point and publishes nothing.",
+  "description": "Published once a revocation commits, whether initiated by the issuer or the admin. A repeated revocation attempt fails before this point and publishes nothing. It also commits the authority policy version, actor role and authorization domain.",
   "compatibility": "additive"
 }

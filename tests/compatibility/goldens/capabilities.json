@@ -1,0 +1,36 @@
+{
+  "$schema": "earnproof-capability-bitmap/v1",
+  "note": "Golden capability bitmap. Within one bitmap_version, identifiers are never renumbered or renamed and a contract never drops a capability it already claims. Update only by appending.",
+  "bitmap_version": 1,
+  "capabilities": [
+    { "id": 0, "name": "interface_version_query" },
+    { "id": 1, "name": "two_step_admin_transfer" },
+    { "id": 2, "name": "migration_status" },
+    { "id": 3, "name": "successor_decommission" },
+    { "id": 4, "name": "upgrade_timelock" },
+    { "id": 5, "name": "config_digest" },
+    { "id": 6, "name": "ttl_status_query" },
+    { "id": 7, "name": "pause_acknowledgements" },
+    { "id": 8, "name": "scoped_pause" },
+    { "id": 9, "name": "signing_key_lifecycle" },
+    { "id": 10, "name": "compromised_signing_keys" },
+    { "id": 11, "name": "governance_role_delays" },
+    { "id": 12, "name": "issuer_assurance_levels" },
+    { "id": 13, "name": "proof_disputes" },
+    { "id": 14, "name": "proof_archival" },
+    { "id": 15, "name": "critical_action_approvals" },
+    { "id": 16, "name": "emergency_fast_track" },
+    { "id": 17, "name": "schema_activation_notice" },
+    { "id": 18, "name": "schema_replacement_pointers" },
+    { "id": 19, "name": "capability_bitmap" },
+    { "id": 20, "name": "storage_layout_query" },
+    { "id": 21, "name": "deployment_identity" },
+    { "id": 22, "name": "dependency_identity_validation" },
+    { "id": 23, "name": "decommission_grace" }
+  ],
+  "contracts": {
+    "issuer-registry": [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 19, 20, 21, 23],
+    "proof-registry": [1, 2, 3, 4, 5, 6, 7, 8, 13, 14, 19, 20, 21, 22, 23],
+    "protocol-config": [0, 1, 2, 3, 4, 7, 8, 15, 16, 17, 18, 19, 20, 21, 23]
+  }
+}

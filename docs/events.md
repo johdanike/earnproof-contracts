@@ -87,7 +87,9 @@ documented `0` sentinel.
 | Topic | Emitted by | Payload |
 |---|---|---|
 | `proof_registered` | `register_proof` | `proof_id_hash`, `issuer_address`, `schema_version`, `created_ledger`, `created_at`, `expires_at`, `epoch` |
-| `proof_revoked` | `revoke_proof`, `admin_revoke_proof` | `proof_id_hash`, `revoked_at`, `revoked_ledger`, `by_admin`, `epoch` |
+| `proof_revoked` | `revoke_proof`, `admin_revoke_proof`, `revoke_proof_at_policy`, `admin_revoke_proof_at_policy` | `proof_id_hash`, `revoked_at`, `revoked_ledger`, `by_admin`, `epoch`, `policy_version`, `actor_role`, `authorization_domain` |
+| `authority_policy_version_changed` | `set_authority_policy_version` | `previous_version`, `new_version`, `changed_by` |
+| `proof_activation_acknowledged` | `acknowledge_activation` | `proof_id_hash`, `acknowledged_by`, `actor_role`, `ledger`, `timestamp`, `sequence` |
 | `pause_acknowledged` | `acknowledge_pause` | `record` |
 | `pause_acknowledger_changed` | `set_pause_acknowledger` | `address`, `enabled`, `changed_by` |
 
@@ -98,6 +100,25 @@ verifiers understand when a proof became invalid without a follow-up query;
 `by_admin` distinguishes an administrator revocation from an issuer revocation.
 For a legacy record without a recorded revocation sequence,
 `revoked_ledger` is `0` and `revoked_at` remains authoritative.
+
+### Lifecycle events shared by every contract
+
+`issuer-registry`, `proof-registry`, and `protocol-config` publish the same
+lifecycle events with the same payloads.
+
+| Topic | Emitted by | Payload |
+|---|---|---|
+| `deployment_domain_set` | `set_deployment_domain`, `initialize_in_domain` (proof-registry) | `deployment_domain`, `commitment`, `set_by` |
+| `storage_layout_migration_started` | `begin_layout_migration` | `from_layout`, `to_layout`, `started_by` |
+| `storage_layout_migrated` | `complete_layout_migration` | `from_layout`, `to_layout`, `completed_by` |
+| `decommission_grace_started` | `begin_decommission_grace` | `successor`, `grace_started_ledger`, `grace_ends_ledger`, `started_by` |
+| `contract_decommissioned` | `activate_successor`, `finalize_decommission` | unchanged payload of each contract |
+
+Replays that the contract accepts as no-ops (the same deployment domain, the
+same pending layout target) publish nothing. See
+[`deployment-identity.md`](./deployment-identity.md),
+[`storage-layout-versions.md`](./storage-layout-versions.md), and
+[`decommission-grace.md`](./decommission-grace.md).
 
 ### Silent entry points
 
@@ -244,3 +265,13 @@ that produced them; `Deployment::capture` in
 reason. A test that performs several operations and inspects the stream
 afterwards will see only the last one — and would pass vacuously while appearing
 to check a sequence.
+
+### Events added with retention bounds and consent withdrawal
+
+| Topic | Contract | Payload |
+|---|---|---|
+| `history_retention_set` | protocol-config | `kind`, `previous_max_entries`, `max_entries`, `revision`, `oldest_retained`, `changed_by` |
+| `consent_withdrawn` | proof-registry | `proof_id_hash`, `policy_hash`, `sequence`, `reason_code`, `commitment_hash` |
+
+Both are additive. See [history-retention-and-event-ranges.md](history-retention-and-event-ranges.md)
+and [consent-receipts.md](consent-receipts.md).

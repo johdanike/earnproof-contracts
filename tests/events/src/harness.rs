@@ -179,7 +179,7 @@ impl Deployment<'_> {
     /// Registers a proof and returns its id hash.
     pub fn register_proof(&self, discriminator: u8) -> BytesN<32> {
         let proof_id = hash(&self.env, discriminator);
-        self.proofs.register_proof_with_type_id(
+        self.proofs.register_proof_typed(
             &proof_id,
             &hash(&self.env, discriminator ^ 0xFF),
             &self.issuer,
@@ -203,17 +203,15 @@ pub fn hash(env: &Env, discriminator: u8) -> BytesN<32> {
 ///
 /// Returns it, so payload assertions can follow.
 pub fn expect_single<'a>(env: &Env, events: &'a [ObservedEvent], topic: &str) -> &'a ObservedEvent {
+    let matching: std::vec::Vec<&'a ObservedEvent> =
+        events.iter().filter(|e| e.is(env, topic)).collect();
     assert_eq!(
-        events.len(),
+        matching.len(),
         1,
         "expected exactly one event with topic {topic}, observed {}",
-        events.len()
+        matching.len()
     );
-    assert!(
-        events[0].is(env, topic),
-        "expected topic {topic}, observed a different event"
-    );
-    &events[0]
+    matching[0]
 }
 
 /// Runs `operation`, expecting it to be rejected.

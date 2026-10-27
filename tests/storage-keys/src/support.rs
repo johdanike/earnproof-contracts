@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Key builders and contract-scoped storage scanning.
 //!
 //! ## Rebuilding the keys
@@ -17,6 +18,9 @@
 //! partitions it with `has()`, which is contract-scoped, so each contract is
 //! measured against its own entries only.
 
+pub fn consent_receipt_key(env: &Env, commitment: &BytesN<32>) -> (Symbol, BytesN<32>) {
+    (Symbol::new(env, "ConsentReceipt"), commitment.clone())
+}
 use earnproof_shared::StorageClass;
 use soroban_sdk::testutils::storage::{Instance as _, Persistent as _, Temporary as _};
 use soroban_sdk::testutils::{Address as _, Ledger as _};
@@ -145,6 +149,10 @@ pub fn proof_key(id: &BytesN<32>) -> (Symbol, BytesN<32>) {
     (symbol_short!("Proof"), id.clone())
 }
 
+pub fn proof_configuration_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
+    (Symbol::new(env, "ProofConfiguration"), id.clone())
+}
+
 pub fn proof_policy_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
     (Symbol::new(env, "ProofPolicy"), id.clone())
 }
@@ -155,6 +163,41 @@ pub fn proof_context_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
 
 pub fn proof_subject_pseudonym_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
     (Symbol::new(env, "ProofSubjectPseudonym"), id.clone())
+}
+
+pub fn consent_receipt_key(env: &Env, commitment_hash: &BytesN<32>) -> (Symbol, BytesN<32>) {
+    (Symbol::new(env, "ConsentReceipt"), commitment_hash.clone())
+}
+
+pub fn consent_withdrawal_key(env: &Env, sequence: u64) -> (Symbol, u64) {
+    (Symbol::new(env, "ConsentWithdrawal"), sequence)
+}
+
+pub fn consent_withdrawal_index_key(
+    env: &Env,
+    proof_id: &BytesN<32>,
+    policy_hash: &BytesN<32>,
+) -> (Symbol, BytesN<32>, BytesN<32>) {
+    (
+        Symbol::new(env, "ConsentWithdrawalIndex"),
+        proof_id.clone(),
+        policy_hash.clone(),
+    )
+}
+
+pub fn consent_withdrawal_count_key(env: &Env) -> (Symbol,) {
+    (Symbol::new(env, "ConsentWithdrawalCount"),)
+}
+
+pub fn proof_policy_versions_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
+    (Symbol::new(env, "ProofPolicyVersions"), id.clone())
+}
+
+pub fn history_retention_key(
+    env: &Env,
+    kind: earnproof_shared::HistoryKind,
+) -> (Symbol, earnproof_shared::HistoryKind) {
+    (Symbol::new(env, "HistoryRetention"), kind)
 }
 
 pub fn proof_subject_nullifier_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
@@ -188,6 +231,10 @@ pub fn max_active_issuers_key(env: &Env) -> (Symbol,) {
 pub fn reactivation_cooldown_key(env: &Env) -> (Symbol,) {
     (Symbol::new(env, "ReactivationCooldown"),)
 }
+pub fn consent_receipt_key(env: &Env, commitment: &BytesN<32>) -> (Symbol, BytesN<32>) {
+    (Symbol::new(env, "ConsentReceipt"), commitment.clone())
+}
+
 pub fn proof_ttl_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
     (Symbol::new(env, "ProofTtl"), id.clone())
 }
@@ -315,7 +362,7 @@ pub fn deployment() -> Deployment {
     let proofs_id = env.register(ProofRegistryContract, ());
     let proofs = ProofRegistryContractClient::new(&env, &proofs_id);
     proofs.initialize(&admin, &issuers_id, &config_id);
-    proofs.register_proof_with_type_id(
+    proofs.register_proof_typed(
         &proof_id,
         &bytes32(&env, 6),
         &issuer,
@@ -362,6 +409,7 @@ pub fn exercised_deployment() -> Deployment {
     config.deprecate_schema_version(&2);
     // Approve a successor with a lineage link so SchemaPredecessor is exercised.
     config.approve_schema_with_predecessor(&3, &1);
+    config.set_history_retention(&earnproof_shared::HistoryKind::ConfigChange, &16, &0);
     config.set_schema_payload_limit(&1, &2_048);
     let config_incident_operator = Address::generate(&env);
     config.set_pause_acknowledger(&config_incident_operator, &true);
@@ -387,6 +435,14 @@ pub fn exercised_deployment() -> Deployment {
         &None,
     );
     issuers.register_issuer(&issuer_id, &issuer, &bytes32(&env, 2), &bytes32(&env, 99));
+    issuers.set_issuer_policy_commitments(
+        &issuer_id,
+        &earnproof_shared::IssuerPolicyCommitments {
+            encoding_version: 1,
+            category_commitment: bytes32(&env, 0x51),
+            jurisdiction_commitment: bytes32(&env, 0x52),
+        },
+    );
     issuers.update_issuer(&issuer_id, &bytes32(&env, 3));
     issuers.rotate_issuer_address(&issuer_id, &rotated_issuer);
     issuers.accept_issuer_address_rotation(&issuer_id);
@@ -396,8 +452,28 @@ pub fn exercised_deployment() -> Deployment {
         &bytes32(&env, 11),
         &bytes32(&env, 99),
     );
-    issuers.suspend_issuer(&BytesN::from_array(&env, &[290u8; 32]), &bytes32(&env, 10), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
-    issuers.reactivate_issuer(&BytesN::from_array(&env, &[293u8; 32]), &bytes32(&env, 10), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
+    let prop1 = bytes32(&env, 101);
+    issuers.suspend_issuer(
+        &soroban_sdk::BytesN::from_array(&env, &{
+            let mut a = [0xA5u8; 32];
+            a[1] = 12;
+            a[2] = 0;
+            a
+        }),
+        &bytes32(&env, 10),
+        &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
+    );
+    let prop2 = bytes32(&env, 102);
+    issuers.reactivate_issuer(
+        &soroban_sdk::BytesN::from_array(&env, &{
+            let mut a = [0xA5u8; 32];
+            a[1] = 11;
+            a[2] = 0;
+            a
+        }),
+        &bytes32(&env, 10),
+        &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
+    );
     issuers.rotate_issuer_address(&bytes32(&env, 10), &Address::generate(&env));
     issuers.register_issuer(
         &bytes32(&env, 20),
@@ -405,19 +481,39 @@ pub fn exercised_deployment() -> Deployment {
         &bytes32(&env, 21),
         &bytes32(&env, 99),
     );
-    issuers.revoke_issuer(&BytesN::from_array(&env, &[292u8; 32]), &bytes32(&env, 20), &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]));
+    let prop3 = bytes32(&env, 103);
+    issuers.revoke_issuer(
+        &soroban_sdk::BytesN::from_array(&env, &{
+            let mut a = [0xA5u8; 32];
+            a[1] = 10;
+            a[2] = 0;
+            a
+        }),
+        &bytes32(&env, 20),
+        &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
+    );
     issuers.register_issuer(
         &bytes32(&env, 30),
         &held_suspended_issuer,
         &bytes32(&env, 31),
         &bytes32(&env, 99),
     );
-    issuers.suspend_issuer(&BytesN::from_array(&env, &[291u8; 32]), &bytes32(&env, 30), &soroban_sdk::BytesN::from_array(&env, &[2u8; 32]));
+    let prop4 = bytes32(&env, 104);
+    issuers.suspend_issuer(
+        &soroban_sdk::BytesN::from_array(&env, &{
+            let mut a = [0xA5u8; 32];
+            a[1] = 9;
+            a[2] = 0;
+            a
+        }),
+        &bytes32(&env, 30),
+        &soroban_sdk::BytesN::from_array(&env, &[2u8; 32]),
+    );
 
     let proofs_id = env.register(ProofRegistryContract, ());
     let proofs = ProofRegistryContractClient::new(&env, &proofs_id);
     proofs.initialize(&admin, &issuers_id, &config_id);
-    proofs.register_proof_with_type_id(
+    proofs.register_proof_typed(
         &proof_id,
         &bytes32(&env, 6),
         &rotated_issuer,
@@ -434,7 +530,7 @@ pub fn exercised_deployment() -> Deployment {
         &Some(proof_id.clone()),
         &soroban_sdk::BytesN::from_array(&env, &[1; 32]),
     );
-    proofs.register_proof_with_type_id(
+    proofs.register_proof_typed(
         &bytes32(&env, 7),
         &bytes32(&env, 8),
         &rotated_issuer,
@@ -444,6 +540,12 @@ pub fn exercised_deployment() -> Deployment {
     );
     proofs.revoke_proof(&bytes32(&env, 7));
     proofs.open_dispute(&proof_id, &rotated_issuer, &bytes32(&env, 30));
+    proofs.append_dispute_evidence(
+        &proof_id,
+        &rotated_issuer,
+        &earnproof_shared::DISPUTE_EVIDENCE_HASH_ALGORITHM_SHA256,
+        &bytes32(&env, 0x53),
+    );
     proofs.archive_proof(&bytes32(&env, 7));
     let proof_incident_operator = Address::generate(&env);
     proofs.set_pause_acknowledger(&proof_incident_operator, &true);
@@ -454,12 +556,14 @@ pub fn exercised_deployment() -> Deployment {
         &proof_incident_operator,
     );
     proofs.unpause_scope(&earnproof_shared::PauseScope::Updates);
+    proofs.commit_disclosure_consent(&proof_id, &bytes32(&env, 30), &1, &bytes32(&env, 31));
+    proofs.withdraw_disclosure_consent(&proof_id, &bytes32(&env, 40), &1, &1, &bytes32(&env, 41));
     let wasm_hash_proofs = bytes32(&env, 0x93);
     let pending_proofs = bytes32(&env, 0x96);
     proofs.approve_upgrade(&wasm_hash_proofs, &2);
     proofs.approve_upgrade(&pending_proofs, &3);
 
-    proofs.register_proof_with_type_payload(
+    proofs.register_proof_typed_payload(
         &bytes32(&env, 9),
         &bytes32(&env, 10),
         &rotated_issuer,
@@ -479,8 +583,21 @@ pub fn exercised_deployment() -> Deployment {
     config.nominate_successor(&successor);
     config.activate_successor();
 
-    issuers.nominate_successor(&successor);
-    issuers.activate_successor();
+    issuers.nominate_successor(
+        &soroban_sdk::BytesN::from_array(&env, &{
+            let mut a = [0xA5u8; 32];
+            a[1] = 8;
+            a[2] = 0;
+            a
+        }),
+        &successor,
+    );
+    issuers.activate_successor(&soroban_sdk::BytesN::from_array(&env, &{
+        let mut a = [0xA5u8; 32];
+        a[1] = 7;
+        a[2] = 0;
+        a
+    }));
 
     proofs.nominate_successor(&successor);
     proofs.activate_successor();

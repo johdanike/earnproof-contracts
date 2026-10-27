@@ -49,6 +49,7 @@ immediate admin mutations in either mode.
 | `unpause` | Current admin | ❌ Rejected | ❌ Rejected | ✅ Accepted |
 | `approve_schema_version` | Current admin | ❌ Rejected | ❌ Rejected | ✅ Accepted |
 | `deprecate_schema_version` | Current admin | ❌ Rejected | ❌ Rejected | ✅ Accepted |
+| `set_history_retention` | Current admin | ❌ Rejected | ❌ Rejected | ✅ Accepted |
 
 ### issuer-registry
 
@@ -71,6 +72,7 @@ immediate admin mutations in either mode.
 | `commit_disclosure_consent` | Proof's issuer | ❌ Rejected | ❌ Rejected | Different active issuer ❌ Rejected | ✅ Accepted |
 | `revoke_proof` | Proof's issuer | ❌ Rejected | ❌ Rejected | Different active issuer ❌ Rejected | ✅ Accepted |
 | `admin_revoke_proof` | Registry admin | ❌ Rejected | ❌ Rejected | Proof's own issuer ❌ Rejected | ✅ Accepted |
+| `withdraw_disclosure_consent` | Proof's issuer | ❌ Rejected | ❌ Rejected | Different active issuer ❌ Rejected | ✅ Accepted |
 
 ## Read-only entry points (no authorization required)
 
@@ -157,7 +159,7 @@ Some rows require fixture state before the authorization attempt:
 The guard constant in `matrix.rs`:
 
 ```rust
-const DOCUMENTED_MUTATIONS: usize = 18;
+const DOCUMENTED_MUTATIONS: usize = 20;
 ```
 
 Bump this constant **only together with** this document when a new mutating
@@ -168,11 +170,11 @@ fails immediately when the counts disagree.
 
 | Metric | Count |
 |--------|-------|
-| Mutating entry points | 18 |
+| Mutating entry points | 20 |
 | Read-only entry points | 17 |
-| Negative matrix rows (Missing × 18) | 18 |
-| Negative matrix rows (Wrong × 18) | 18 |
-| Control rows (Authorized × 18) | 18 |
+| Negative matrix rows (Missing × 20) | 20 |
+| Negative matrix rows (Wrong × 20) | 20 |
+| Control rows (Authorized × 20) | 20 |
 | Cross-role boundary tests | 4 |
 | Authorization tree assertions | 4 |
 | Stale/former-admin tests | 6 |

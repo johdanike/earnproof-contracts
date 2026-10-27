@@ -1,0 +1,44 @@
+{
+  "event": "HistoryRetentionSet",
+  "contract": "protocol-config",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": [
+    "history_retention_set"
+  ],
+  "payload": {
+    "kind": {
+      "type": "HistoryKind",
+      "description": "Which bounded history changed: ConfigChange or PauseAcknowledgement.",
+      "example": "ConfigChange"
+    },
+    "previous_max_entries": {
+      "type": "U32",
+      "description": "Retention cap before the change.",
+      "example": 32
+    },
+    "max_entries": {
+      "type": "U32",
+      "description": "Retention cap after the change.",
+      "example": 16
+    },
+    "revision": {
+      "type": "U32",
+      "description": "Retention revision after the change; each accepted update increments it by one.",
+      "example": 1
+    },
+    "oldest_retained": {
+      "type": "U32",
+      "description": "Oldest sequence still queryable after the change.",
+      "example": 0
+    },
+    "changed_by": {
+      "type": "Address",
+      "description": "Admin that authorized the change.",
+      "example": "GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR"
+    }
+  },
+  "emitted_by": "set_history_retention",
+  "description": "Emitted when governance changes the retention cap of a bounded history.",
+  "compatibility": "additive"
+}

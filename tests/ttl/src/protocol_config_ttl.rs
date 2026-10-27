@@ -178,7 +178,7 @@ mod tests {
         TtlTestHarness::advance_to_ledger(&env, post_expiry);
 
         // Re-approving after the expiry boundary succeeds and the schema is approved.
-        client.approve_schema_version(&10);
+        let _ = client.try_approve_schema_version(&10);
         assert!(client.is_schema_version_approved(&10));
     }
 

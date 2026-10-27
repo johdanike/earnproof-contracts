@@ -141,9 +141,10 @@ fuzz_target!(|data: &[u8]| {
         proof_type,
         revoked_ledger,
         sequence_number,
-        created_ledger,
-        activates_at,
-    };
+    created_ledger,
+    activates_at,
+    evidence_bundle: None,
+};
 
     // Verify invariants (test should not reach here if invariants are violated)
     assert_eq!(_proof.proof_id_hash.len(), 32);

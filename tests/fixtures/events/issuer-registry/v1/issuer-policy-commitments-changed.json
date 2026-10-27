@@ -1,0 +1,36 @@
+{
+  "event": "issuer_policy_commitments_changed",
+  "contract": "issuer-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": ["issuer_policy_commitments_changed"],
+  "payload": {
+    "issuer_id_hash": {
+      "type": "BytesN<32>",
+      "description": "Identifier hash of the issuer whose policy commitments changed."
+    },
+    "commitments": {
+      "type": "IssuerPolicyCommitments",
+      "description": "Opaque category and jurisdiction commitments only."
+    },
+    "version": {
+      "type": "u32",
+      "description": "Monotonic per-issuer policy commitment version."
+    },
+    "effective_ledger": {
+      "type": "u32",
+      "description": "Ledger sequence at which the commitments became effective."
+    },
+    "effective_timestamp": {
+      "type": "u64",
+      "description": "Ledger timestamp at which the commitments became effective."
+    },
+    "changed_by": {
+      "type": "Address",
+      "description": "Authorized registry administrator that recorded the update."
+    }
+  },
+  "emitted_by": "set_issuer_policy_commitments",
+  "description": "Announces an immutable privacy-safe issuer policy commitment version.",
+  "compatibility": "additive"
+}

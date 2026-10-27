@@ -1,0 +1,29 @@
+{
+  "event": "authority_policy_version_changed",
+  "contract": "proof-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": [
+    "authority_policy_version_changed"
+  ],
+  "payload": {
+    "previous_version": {
+      "type": "u32",
+      "description": "Policy version before the change.",
+      "example": 1
+    },
+    "new_version": {
+      "type": "u32",
+      "description": "Policy version after the change. Always greater than previous_version.",
+      "example": 2
+    },
+    "changed_by": {
+      "type": "Address",
+      "description": "Admin that raised the version.",
+      "example": "GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR"
+    }
+  },
+  "emitted_by": "set_authority_policy_version",
+  "description": "Published when governance raises the authority policy version. Revocations already recorded keep the version they committed.",
+  "compatibility": "additive"
+}

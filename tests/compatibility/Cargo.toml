@@ -9,7 +9,16 @@ publish = false
 name = "compatibility"
 path = "tests/compatibility.rs"
 
+[[test]]
+name = "upgrade_preconditions"
+path = "tests/upgrade_preconditions.rs"
+
 [dev-dependencies]
+earnproof-shared.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 soroban-sdk = { workspace = true, features = ["testutils"] }
+earnproof-shared = { path = "../../packages/shared" }
+protocol-config = { path = "../../contracts/protocol-config" }
+issuer-registry = { path = "../../contracts/issuer-registry" }
+proof-registry = { path = "../../contracts/proof-registry" }

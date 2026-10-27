@@ -231,7 +231,12 @@ fn issuer_containment_requires_the_issuer_registry_admin() {
     let issuer_id = crate::harness::issuer_id_hash(&deployment.env, 1);
 
     deployment.config.pause();
-    deployment.issuers.suspend_issuer(&BytesN::from_array(&deployment.env, &[284u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
+    let proposal = crate::harness::hash(&deployment.env, 0x71);
+    deployment.issuers.suspend_issuer(
+        &proposal,
+        &issuer_id,
+        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+    );
 
     assert_authorized_by(
         &deployment,
@@ -274,13 +279,23 @@ fn a_revoked_issuer_cannot_be_reactivated_after_the_incident() {
     let issuer_id = crate::harness::issuer_id_hash(&deployment.env, 1);
 
     deployment.config.pause();
-    deployment.issuers.revoke_issuer(&BytesN::from_array(&deployment.env, &[285u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
+    let proposal = crate::harness::hash(&deployment.env, 0x72);
+    deployment.issuers.revoke_issuer(
+        &proposal,
+        &issuer_id,
+        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+    );
     deployment.config.unpause();
 
+    let proposal_react = crate::harness::hash(&deployment.env, 0x73);
     assert!(
         deployment
             .issuers
-            .try_reactivate_issuer(&BytesN::from_array(&deployment.env, &[77u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]))
+            .try_reactivate_issuer(
+                &proposal_react,
+                &issuer_id,
+                &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32])
+            )
             .is_err(),
         "revocation must survive the end of the pause"
     );
@@ -296,13 +311,18 @@ fn a_revoked_issuer_cannot_register_new_proofs_after_unpause() {
     let issuer_id = crate::harness::issuer_id_hash(&deployment.env, 1);
 
     deployment.config.pause();
-    deployment.issuers.revoke_issuer(&BytesN::from_array(&deployment.env, &[286u8; 32]), &issuer_id, &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]));
+    let proposal = crate::harness::hash(&deployment.env, 0x74);
+    deployment.issuers.revoke_issuer(
+        &proposal,
+        &issuer_id,
+        &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
+    );
     deployment.config.unpause();
 
     assert!(
         deployment
             .proofs
-            .try_register_proof_with_type_id(
+            .try_register_proof_typed(
                 &crate::harness::hash(&deployment.env, 0xA1),
                 &crate::harness::hash(&deployment.env, 0xA2),
                 &deployment.issuer,

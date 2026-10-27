@@ -155,6 +155,13 @@ operational control is the handover procedure below, not a contract check.
 register proofs afterwards; a revoked proof stays revoked; a deprecated schema
 stays deprecated. Recovery is not a rollback.
 
+## Retiring a contract
+
+To retire a contract without cutting readers off, nominate the successor, then
+call `begin_decommission_grace` to open a bounded read-only window and
+`finalize_decommission` once it has elapsed. The phases, allowed operations,
+and exact boundary are in [Decommission Grace Periods](./decommission-grace.md).
+
 ## Evidence and privacy
 
 Operators reconstruct an incident from two sources:
