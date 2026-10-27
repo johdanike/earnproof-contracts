@@ -39,4 +39,7 @@ mod rotation;
 mod delegation;
 
 #[cfg(test)]
+mod enumeration;
+
+#[cfg(test)]
 mod probe;
