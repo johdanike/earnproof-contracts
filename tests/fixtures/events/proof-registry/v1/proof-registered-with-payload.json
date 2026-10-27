@@ -1,0 +1,17 @@
+{
+  "event": "proof_registered_with_payload",
+  "contract": "proof-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": ["proof_registered_with_payload"],
+  "payload": {
+    "proof_id_hash": {"type": "BytesN<32>", "description": "Identifier hash of the registered proof."},
+    "payload_len": {"type": "u32", "description": "Length of the off-chain payload supplied for this proof."},
+    "payload_hash": {"type": "BytesN<32>", "description": "SHA-256 commitment to the payload; raw bytes are not emitted."},
+    "configuration_commitments": {"type": "ProofConfigurationCommitments", "description": "Immutable digest and version references for issuance configuration."},
+    "epoch": {"type": "u32", "description": "Registry epoch after registration."}
+  },
+  "emitted_by": "register_proof_with_payload",
+  "description": "Publishes bounded payload metadata and the immutable issuance configuration snapshot.",
+  "compatibility": "additive"
+}

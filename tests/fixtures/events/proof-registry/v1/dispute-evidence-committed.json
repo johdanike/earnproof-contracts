@@ -1,0 +1,20 @@
+{
+  "event": "dispute_evidence_committed",
+  "contract": "proof-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": ["dispute_evidence_committed"],
+  "payload": {
+    "proof_id_hash": {
+      "type": "BytesN<32>",
+      "description": "Identifier hash of the proof whose dispute received an evidence commitment."
+    },
+    "record": {
+      "type": "DisputeEvidenceCommitment",
+      "description": "Hash-only evidence metadata including submitter role, algorithm, dispute round, sequence, ledger, and timestamp."
+    }
+  },
+  "emitted_by": "append_dispute_evidence",
+  "description": "Announces one authorized hash-only evidence commitment appended to an open dispute.",
+  "compatibility": "additive"
+}

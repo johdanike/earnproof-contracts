@@ -158,11 +158,14 @@ commitment hashes and public transition metadata only. The original
 | Proof Record | `Proof(hash)` | `get_proof(hash)` reads & extends; `is_valid_proof(hash)` reads & extends | ProofNotFound error | ✓ Yes |
 | Dispute Record | `Dispute(hash)` | `get_dispute(hash)` and decision metadata query extend | DisputeNotFound error | ✓ Yes |
 | Dispute Decision Metadata | `DisputeDecisionMetadata(hash)` | written atomically with resolve/reject; query returns `None` for legacy decisions | `None` for open, withdrawn, or legacy disputes | ✓ Yes |
+| Dispute Evidence | `DisputeEvidence(hash, round, sequence)`, `DisputeEvidenceCount(hash, round)`, `DisputeRound(hash)` | append-only hash-only records; bounded page query by round and cursor | Old rounds remain queryable; each round accepts at most 16 entries | ✓ Yes |
+| Proof Configuration | `ProofConfiguration(hash)` | immutable snapshot written at registration; queried by `get_proof_configuration_commitments` | `None` for legacy proofs; ProofNotFound for unknown proof | ✓ Yes |
 | Proof Context Commitments | `ProofContext(hash)` | `get_proof_context_commitments(hash)` reads & extends when present | Returns `None` for legacy records; ProofNotFound for an unknown proof | ✓ Yes |
 | Subject Pseudonym Commitment | `ProofSubjectPseudonym(hash)` | `get_proof_pseudonym_commitment(hash)` reads & extends with proof record | Returns `None` when omitted or on legacy records | ✓ Yes |
 | Pause Acknowledger | `PauseAcknowledger(address)` | admin-managed role lookup | Returns false | ✓ Yes |
 | Pause Acknowledgement | `PauseAcknowledgementHash(hash)`, `PauseAcknowledgementHistory(sequence)` | direct and bounded history queries | Returns `None` or omits missing history | ✓ Yes |
 | Pause Acknowledgement Count | `PauseAcknowledgementCount` | append and history query | Returns `0` | ✓ Yes |
+| Issuer Policy | `IssuerPolicy(issuer)`; `IssuerPolicyHistory(issuer, slot)`; `IssuerPolicySequence(issuer)` | legacy-compatible current commitments and 16-slot versioned ring | Current commitments remain readable; old versions may be evicted from the ring | ✓ Yes |
 
 **Persistent TTL Extension**: Called via `extend_proof_key_ttl(key)` on:
 - `register_proof()`: extends on creation
@@ -183,6 +186,19 @@ the issuer- and purpose-domain-separated 32-byte commitment. An all-zero input
 means absent and creates no sidecar. The raw pseudonym and wallet address are
 never stored; old proofs remain readable and return `None` from the pseudonym
 query.
+
+`ProofConfiguration(hash)` stores the digest version, identities and digests
+for the bound proof, issuer, and protocol contracts, the issuer policy
+version, and the versioned schema-policy digest. It is written at registration
+and never mutated by later configuration changes. The serialized
+`ProofRecord` shape remains unchanged; its query returns `None` for legacy
+records.
+
+Issuer policy history stores only opaque policy commitments plus a monotonic
+version and host ledger/time boundary. The existing `IssuerPolicy(issuer)`
+value remains the original `IssuerPolicyCommitments` serialization for upgrade
+compatibility. Legacy entries remain readable and report current version `0`
+until replaced by a successful versioned update.
 
 ---
 

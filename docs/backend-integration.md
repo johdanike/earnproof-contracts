@@ -362,6 +362,41 @@ Every successful mutation emits its documented typed event or events. Failed,
 unauthorized, duplicate, expired, or paused-protocol operations emit no success
 event.
 
+#### Issuer policy and issuance configuration snapshots
+
+`set_issuer_policy_commitments` preserves the current commitment getter and
+adds a monotonic per-issuer version. `get_issuer_policy_version` returns `0`
+for a legacy issuer that has not yet received a versioned update;
+`get_issuer_policy_commitment_at_version` and `get_issuer_policy_history`
+query the bounded 16-version retained history. Each history record contains
+only the two opaque commitments, version, effective ledger, and effective
+timestamp. Failed updates do not advance the version or emit an event.
+
+Successful proof registration captures the proof, issuer-registry, and
+protocol-config identities/digests, issuer policy version, and versioned
+schema-policy digest in `ProofConfigurationCommitments`. The immutable
+sidecar also retains the opaque issuer policy commitment pair, so the version
+remains auditable after a bounded history slot is evicted. For legacy issuers
+with policy version `0`, the pair uses an all-zero encoding-version/hash
+sentinel. It is queryable
+through `get_proof_configuration_commitments` and is
+included in the existing registration event payload, so the invocation still
+emits exactly one registration event. Legacy proofs return `None`.
+Registration requires compatible issuer/protocol interfaces and available
+versioned schema digest data.
+
+#### Dispute evidence commitments
+
+`append_dispute_evidence(proof_id_hash, submitter, algorithm, evidence_hash)`
+accepts only an algorithm identifier and fixed-size evidence hash. The
+submitter must be the dispute opener, proof issuer, or registry admin and
+must authorize the call. Only an open dispute accepts additions; each dispute
+round retains at most 16 entries. `get_dispute_sequence` returns the active
+round identifier, which is supplied to the bounded cursor-based
+`get_dispute_evidence_history` query. Records expose submitter role, algorithm,
+sequence, ledger, and timestamp. Evidence bytes, URLs, and claim text are not
+part of the contract interface.
+
 #### Dispute decisions
 
 `resolve_dispute(proof_id_hash, reason)` and

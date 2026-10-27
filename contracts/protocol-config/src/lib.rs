@@ -1980,6 +1980,21 @@ impl ProtocolConfigContract {
             .unwrap_or(0)
     }
 
+    pub fn get_config_digest_version() -> u32 {
+        earnproof_shared::CONFIG_DIGEST_VERSION
+    }
+
+    pub fn get_config_digest(env: Env) -> Result<BytesN<32>, ContractError> {
+        let admin = Self::get_admin(env.clone())?;
+        Ok(earnproof_shared::protocol_config_digest(
+            &env,
+            &admin,
+            Self::is_paused(env.clone()),
+            Self::get_config_version(env.clone()),
+            Self::get_contract_version(env),
+        ))
+    }
+
     /// Admin-only: replace the global proof-dispute filing window. The policy
     /// applies at filing time, including to proofs created before the change.
     pub fn set_dispute_filing_policy(

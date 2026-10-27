@@ -149,6 +149,10 @@ pub fn proof_key(id: &BytesN<32>) -> (Symbol, BytesN<32>) {
     (symbol_short!("Proof"), id.clone())
 }
 
+pub fn proof_configuration_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
+    (Symbol::new(env, "ProofConfiguration"), id.clone())
+}
+
 pub fn proof_policy_key(env: &Env, id: &BytesN<32>) -> (Symbol, BytesN<32>) {
     (Symbol::new(env, "ProofPolicy"), id.clone())
 }
@@ -431,6 +435,14 @@ pub fn exercised_deployment() -> Deployment {
         &None,
     );
     issuers.register_issuer(&issuer_id, &issuer, &bytes32(&env, 2), &bytes32(&env, 99));
+    issuers.set_issuer_policy_commitments(
+        &issuer_id,
+        &earnproof_shared::IssuerPolicyCommitments {
+            encoding_version: 1,
+            category_commitment: bytes32(&env, 0x51),
+            jurisdiction_commitment: bytes32(&env, 0x52),
+        },
+    );
     issuers.update_issuer(&issuer_id, &bytes32(&env, 3));
     issuers.rotate_issuer_address(&issuer_id, &rotated_issuer);
     issuers.accept_issuer_address_rotation(&issuer_id);
@@ -528,6 +540,12 @@ pub fn exercised_deployment() -> Deployment {
     );
     proofs.revoke_proof(&bytes32(&env, 7));
     proofs.open_dispute(&proof_id, &rotated_issuer, &bytes32(&env, 30));
+    proofs.append_dispute_evidence(
+        &proof_id,
+        &rotated_issuer,
+        &earnproof_shared::DISPUTE_EVIDENCE_HASH_ALGORITHM_SHA256,
+        &bytes32(&env, 0x53),
+    );
     proofs.archive_proof(&bytes32(&env, 7));
     let proof_incident_operator = Address::generate(&env);
     proofs.set_pause_acknowledger(&proof_incident_operator, &true);
