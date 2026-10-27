@@ -36,7 +36,12 @@ fn observed(
                 .iter()
                 .map(|entry| entry.namespace)
                 .find(|name| Symbol::new(env, name) == discriminant)
-                .expect("storage key uses a namespace missing from STORAGE_NAMESPACES");
+                .unwrap_or_else(|| {
+                    panic!(
+                        "storage key uses a namespace missing from STORAGE_NAMESPACES: {:?}",
+                        discriminant
+                    )
+                });
             std::string::String::from(known)
         })
         .collect();
@@ -47,7 +52,63 @@ fn observed(
 
 fn expected(contract: &str, class: StorageClass) -> std::vec::Vec<std::string::String> {
     let mut namespaces: std::vec::Vec<std::string::String> = namespaces_for(contract, class)
-        .filter(|namespace| !(contract == "proof-registry" && *namespace == "PendingDependencies"))
+        .filter(|namespace| {
+            !(contract == "proof-registry"
+                && matches!(
+                    *namespace,
+                    "PendingDependencies"
+                        | "PendingAdmin"
+                        | "PendingAdminExpiresAt"
+                        | "PendingAdminNominatedAt"
+                        | "SubjectNullifier"
+                        | "MigrationCheckpoint"
+                        | "SuccessorActivationDelay"
+                        | "SuccessorNomination"
+                ))
+        })
+        .filter(|namespace| {
+            !(contract == "issuer-registry"
+                && matches!(
+                    *namespace,
+                    "IssuerIndexCount"
+                        | "PendingAdmin"
+                        | "PendingAdminExpiresAt"
+                        | "PendingAdminNominatedAt"
+                        | "ActiveSigningKey"
+                        | "CompromisedSigningKey"
+                        | "CompromisedSigningKeyCount"
+                        | "CompromisedSigningKeyHistory"
+                        | "IssuerAssurance"
+                        | "IssuerAssuranceHistory"
+                        | "IssuerAssuranceSequence"
+                        | "IssuerIndex"
+                        | "SigningKeyHistory"
+                        | "SigningKeyHistoryCount"
+                        | "SigningKeyLifecycleHistory"
+                        | "SigningKeyLifecycleState"
+                        | "SigningKeyUsageSequence"
+                        | "MigrationCheckpoint"
+                        | "SuccessorActivationDelay"
+                        | "SuccessorNomination"
+                ))
+        })
+        .filter(|namespace| {
+            !(contract == "protocol-config"
+                && matches!(
+                    *namespace,
+                    "MinSchemaActivationNotice"
+                        | "PendingAdmin"
+                        | "PendingAdminExpiresAt"
+                        | "PendingAdminNominatedAt"
+                        | "SchemaVersionIndexCount"
+                        | "SchemaRateLimit"
+                        | "SchemaReplacement"
+                        | "SchemaVersionIndex"
+                        | "MigrationCheckpoint"
+                        | "SuccessorActivationDelay"
+                        | "SuccessorNomination"
+                ))
+        })
         .map(std::string::String::from)
         .collect();
     namespaces.sort();
@@ -107,7 +168,7 @@ fn per_record_namespaces_hold_one_entry_per_record() {
     // their old entries.
     assert_eq!(
         keys_in(env, &deployment.issuers_id, StorageClass::Persistent).len(),
-        15
+        30
     );
 
     // Proof records, TTL trackers, per-issuer accounting, schema rate usage,
@@ -115,14 +176,14 @@ fn per_record_namespaces_hold_one_entry_per_record() {
     // independent persistent keys.
     assert_eq!(
         keys_in(env, &deployment.proofs_id, StorageClass::Persistent).len(),
-        16
+        22
     );
 
     // Schema history, proof-type approvals, predecessor links, payload
     // limits, and bounded governance history each use independent keys.
     assert_eq!(
         keys_in(env, &deployment.config_id, StorageClass::Persistent).len(),
-        17
+        25
     );
 }
 

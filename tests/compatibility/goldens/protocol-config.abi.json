@@ -166,6 +166,106 @@
       "auth": "admin_only",
       "guards": ["panics if hash not allowlisted", "panics if target_version <= current_version"],
       "effects": "consumes allowlist entry (replay-safe), updates WASM, advances ContractVersion, emits ContractUpgraded"
+    },
+    {
+      "name": "get_capabilities",
+      "inputs": [
+        { "name": "env", "type": "Env" }
+      ],
+      "output": "ContractCapabilities",
+      "access": "public",
+      "auth": "none"
+    },
+    {
+      "name": "has_capability",
+      "inputs": [
+        { "name": "env", "type": "Env" },
+        { "name": "capability", "type": "u32" }
+      ],
+      "output": "bool",
+      "access": "public",
+      "auth": "none"
+    },
+    {
+      "name": "get_storage_layout",
+      "inputs": [
+        { "name": "env", "type": "Env" }
+      ],
+      "output": "StorageLayoutStatus",
+      "access": "public",
+      "auth": "none"
+    },
+    {
+      "name": "begin_layout_migration",
+      "inputs": [
+        { "name": "env", "type": "Env" },
+        { "name": "target_layout", "type": "u32" }
+      ],
+      "output": "Result<StorageLayoutStatus, ContractError>",
+      "access": "public",
+      "auth": "admin.require_auth()",
+      "guards": ["InvalidState", "InvalidInput"]
+    },
+    {
+      "name": "complete_layout_migration",
+      "inputs": [
+        { "name": "env", "type": "Env" },
+        { "name": "target_layout", "type": "u32" }
+      ],
+      "output": "Result<StorageLayoutStatus, ContractError>",
+      "access": "public",
+      "auth": "admin.require_auth()",
+      "guards": ["InvalidState"]
+    },
+    {
+      "name": "set_deployment_domain",
+      "inputs": [
+        { "name": "env", "type": "Env" },
+        { "name": "deployment_domain", "type": "BytesN<32>" }
+      ],
+      "output": "Result<DeploymentIdentity, ContractError>",
+      "access": "public",
+      "auth": "admin.require_auth()",
+      "guards": ["InvalidState", "InvalidInput", "DeploymentIdentityMismatch"]
+    },
+    {
+      "name": "get_deployment_identity",
+      "inputs": [
+        { "name": "env", "type": "Env" }
+      ],
+      "output": "Option<DeploymentIdentity>",
+      "access": "public",
+      "auth": "none"
+    },
+    {
+      "name": "begin_decommission_grace",
+      "inputs": [
+        { "name": "env", "type": "Env" },
+        { "name": "grace_ledgers", "type": "u32" }
+      ],
+      "output": "Result<DecommissionState, ContractError>",
+      "access": "public",
+      "auth": "admin.require_auth()",
+      "guards": ["InvalidState", "NotFound", "InvalidTimingConfig"]
+    },
+    {
+      "name": "finalize_decommission",
+      "inputs": [
+        { "name": "env", "type": "Env" }
+      ],
+      "output": "Result<DecommissionState, ContractError>",
+      "access": "public",
+      "auth": "admin.require_auth()",
+      "guards": ["InvalidState", "InvalidTimingConfig"]
+    },
+    {
+      "name": "get_decommission_state",
+      "inputs": [
+        { "name": "env", "type": "Env" }
+      ],
+      "output": "DecommissionState",
+      "access": "public",
+      "auth": "none"
     }
   ],
 
@@ -238,6 +338,30 @@
       "data_type": "{ new_wasm_hash: BytesN<32>, old_contract_version: u32, new_contract_version: u32, upgraded_by: Address }",
       "when": "upgrade_contract() succeeds",
       "category": "upgrade"
+    },
+    {
+      "name": "DeploymentDomainSet",
+      "data_type": "{ deployment_domain: BytesN<32>, commitment: BytesN<32>, set_by: Address }",
+      "when": "set_deployment_domain() first succeeds",
+      "category": "lifecycle"
+    },
+    {
+      "name": "StorageLayoutMigrationStarted",
+      "data_type": "{ from_layout: u32, to_layout: u32, started_by: Address }",
+      "when": "begin_layout_migration() records a new step",
+      "category": "lifecycle"
+    },
+    {
+      "name": "StorageLayoutMigrated",
+      "data_type": "{ from_layout: u32, to_layout: u32, completed_by: Address }",
+      "when": "complete_layout_migration() succeeds",
+      "category": "lifecycle"
+    },
+    {
+      "name": "DecommissionGraceStarted",
+      "data_type": "{ successor: Address, grace_started_ledger: u32, grace_ends_ledger: u32, started_by: Address }",
+      "when": "begin_decommission_grace() succeeds",
+      "category": "lifecycle"
     }
   ],
 
@@ -292,6 +416,38 @@
       "mutated_by": "initialize() sets to 1, upgrade_contract() advances",
       "ttl": "extends via extend_instance_ttl()",
       "note": "Monotonic; prevents downgrade; separate from ConfigVersion"
+    },
+    {
+      "key": "DataKey::DeploymentDomain",
+      "tier": "instance",
+      "value_type": "BytesN<32>",
+      "access": "get_deployment_identity()",
+      "mutated_by": "set_deployment_domain()",
+      "ttl": "extends via extend_instance_ttl()"
+    },
+    {
+      "key": "DataKey::DecommissionGrace",
+      "tier": "instance",
+      "value_type": "DecommissionState",
+      "access": "get_decommission_state()",
+      "mutated_by": "begin_decommission_grace(), finalize_decommission()",
+      "ttl": "extends via extend_instance_ttl()"
+    },
+    {
+      "key": "DataKey::StorageLayoutVersion",
+      "tier": "instance",
+      "value_type": "u32",
+      "access": "get_storage_layout()",
+      "mutated_by": "initialize(), complete_layout_migration()",
+      "ttl": "extends via extend_instance_ttl()"
+    },
+    {
+      "key": "DataKey::StorageLayoutMigration",
+      "tier": "instance",
+      "value_type": "u32",
+      "access": "get_storage_layout()",
+      "mutated_by": "begin_layout_migration(), complete_layout_migration()",
+      "ttl": "extends via extend_instance_ttl()"
     }
   ],
 

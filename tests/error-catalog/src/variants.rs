@@ -1,7 +1,9 @@
 //! The catalog and the error enums describe the same set of errors.
 
 use earnproof_shared::error_catalog::{domain_for, spec, Domain};
-use earnproof_shared::{ContractError, IssuerError, ProofError, ERROR_CATALOG};
+use earnproof_shared::{
+    ContractError, IssuerError, ProofError, ProtocolConfigError, ERROR_CATALOG,
+};
 
 /// Every variant of every published error enum, paired with its code.
 ///
@@ -116,6 +118,36 @@ fn declared_variants() -> std::vec::Vec<(&'static str, &'static str, u32)> {
             "ContractError",
             "InvalidApprovalPolicy",
             ContractError::InvalidApprovalPolicy as u32
+        ),
+        (
+            "ProtocolConfigError",
+            "HashAlgorithmNotFound",
+            ProtocolConfigError::HashAlgorithmNotFound as u32,
+        ),
+        (
+            "ProtocolConfigError",
+            "InvalidHashAlgorithmTransition",
+            ProtocolConfigError::InvalidHashAlgorithmTransition as u32,
+        ),
+        (
+            "ProtocolConfigError",
+            "HashAlgorithmDeprecated",
+            ProtocolConfigError::HashAlgorithmDeprecated as u32,
+        ),
+        (
+            "ProtocolConfigError",
+            "InvalidHashAlgorithmId",
+            ProtocolConfigError::InvalidHashAlgorithmId as u32,
+        ),
+        (
+            "ProtocolConfigError",
+            "HashAlgorithmNotActive",
+            ProtocolConfigError::HashAlgorithmNotActive as u32,
+        ),
+        (
+            "ProtocolConfigError",
+            "RegistryUnavailable",
+            ProtocolConfigError::RegistryUnavailable as u32,
         ),
         (
             "IssuerError",
@@ -326,6 +358,36 @@ fn declared_variants() -> std::vec::Vec<(&'static str, &'static str, u32)> {
             "ProofError",
             "UnsupportedNullifierDomain",
             ProofError::UnsupportedNullifierDomain as u32,
+        ),
+        (
+            "ProofError",
+            "ConsentReceiptAlreadyCommitted",
+            ProofError::ConsentReceiptAlreadyCommitted as u32,
+        ),
+        (
+            "ProofError",
+            "ConsentAlreadyWithdrawn",
+            ProofError::ConsentAlreadyWithdrawn as u32,
+        ),
+        (
+            "ProofError",
+            "ConsentWithdrawn",
+            ProofError::ConsentWithdrawn as u32,
+        ),
+        (
+            "ProofError",
+            "StaleConsentWithdrawalSequence",
+            ProofError::StaleConsentWithdrawalSequence as u32,
+        ),
+        (
+            "ProofError",
+            "InvalidConsentWithdrawalReason",
+            ProofError::InvalidConsentWithdrawalReason as u32,
+        ),
+        (
+            "ProofError",
+            "UnsupportedEventDomain",
+            ProofError::UnsupportedEventDomain as u32,
         ),
     ]
 }

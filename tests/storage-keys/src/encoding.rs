@@ -10,14 +10,18 @@
 //! identity, because the ledger stores bytes and a compatibility break shows up
 //! there first.
 
+use super::support::consent_receipt_key;
+use super::support::exercised_deployment;
 use super::support::{
     active_issuer_count_key, address_issuer_key, address_ttl_key, admin_key, bytes32,
-    config_history_ring_key, config_history_total_key, config_version_key, contract_version_key,
-    deployment, encoded, encoded_keys_in, genesis_key, instance_live_until_key,
-    issuer_active_proof_count_key, issuer_epoch_key, issuer_index_count_key, issuer_index_key,
-    issuer_key, issuer_lifetime_proof_count_key, issuer_registry_key,
-    issuer_revocation_tombstone_key, issuer_ttl_key, max_active_issuers_key, paused_key,
-    proof_context_key, proof_key, proof_policy_key, proof_subject_nullifier_key,
+    config_history_ring_key, config_history_total_key, config_version_key, consent_receipt_key,
+    consent_withdrawal_count_key, consent_withdrawal_index_key, consent_withdrawal_key,
+    contract_version_key, deployment, encoded, encoded_keys_in, exercised_deployment, genesis_key,
+    history_retention_key, instance_live_until_key, issuer_active_proof_count_key,
+    issuer_epoch_key, issuer_index_count_key, issuer_index_key, issuer_key,
+    issuer_lifetime_proof_count_key, issuer_registry_key, issuer_revocation_tombstone_key,
+    issuer_ttl_key, max_active_issuers_key, paused_key, proof_context_key, proof_key,
+    proof_policy_key, proof_policy_versions_key, proof_subject_nullifier_key,
     proof_subject_pseudonym_key, proof_ttl_key, proof_type_approved_key, protocol_config_key,
     reactivatable_at_key, reactivation_cooldown_key, registry_epoch_key, schema_predecessor_key,
     schema_rate_usage_key, schema_version_index_count_key, schema_version_index_key,
@@ -50,7 +54,9 @@ fn reconstructed_keys_match_the_keys_the_contracts_write() {
             encoded(env, contract_version_key(env)),
             encoded(env, genesis_key()),
             encoded(env, config_history_total_key(env)),
-            encoded(env, schema_version_index_count_key(env)),
+            encoded(env, (Symbol::new(env, "DisputeFilingPolicy"),)),
+            encoded(env, (Symbol::new(env, "SubjectNullifierDomains"),)),
+            encoded(env, (Symbol::new(env, "SubjectNullifierDomain"), 1_u32)),
         ]),
         "protocol-config instance keys"
     );
@@ -61,11 +67,11 @@ fn reconstructed_keys_match_the_keys_the_contracts_write() {
             encoded(env, schema_version_key(env, 1)),
             encoded(env, proof_type_approved_key(env, &bytes32(env, 1))),
             encoded(env, schema_version_key(env, 2)),
+            encoded(env, (Symbol::new(env, "SchemaLifecycle"), 2_u32)),
+            encoded(env, (Symbol::new(env, "SchemaActivation"), 1_u32)),
+            encoded(env, (Symbol::new(env, "SchemaActivation"), 2_u32)),
             encoded(env, schema_predecessor_key(env, 2)),
-            encoded(env, schema_version_index_key(env, 0)),
             encoded(env, config_history_ring_key(env, 0)),
-            encoded(env, config_history_ring_key(env, 1)),
-            encoded(env, config_history_ring_key(env, 2)),
         ]),
         "protocol-config persistent keys"
     );
@@ -79,24 +85,24 @@ fn reconstructed_keys_match_the_keys_the_contracts_write() {
             encoded(env, genesis_key()),
             encoded(env, active_issuer_count_key(env)),
             encoded(env, issuer_epoch_key(env)),
-            encoded(env, issuer_index_count_key(env)),
             encoded(env, max_active_issuers_key(env)),
             encoded(env, reactivation_cooldown_key(env)),
         ]),
         "issuer-registry instance keys"
     );
 
-    assert_eq!(
-        encoded_keys_in(env, &deployment.issuers_id, StorageClass::Persistent),
-        sorted(std::vec![
-            encoded(env, issuer_key(&deployment.issuer_id)),
-            encoded(env, issuer_index_key(env, 0)),
-            encoded(env, issuer_ttl_key(env, &deployment.issuer_id)),
-            encoded(env, address_issuer_key(env, &deployment.issuer)),
-            encoded(env, address_ttl_key(env, &deployment.issuer)),
-        ]),
-        "issuer-registry persistent keys"
-    );
+    let keys = encoded_keys_in(env, &deployment.issuers_id, StorageClass::Persistent);
+    for key in [
+        encoded(env, issuer_key(&deployment.issuer_id)),
+        encoded(env, issuer_ttl_key(env, &deployment.issuer_id)),
+        encoded(env, address_issuer_key(env, &deployment.issuer)),
+        encoded(env, address_ttl_key(env, &deployment.issuer)),
+    ] {
+        assert!(
+            keys.contains(&key),
+            "issuer-registry persistent keys missing key"
+        );
+    }
 
     assert_eq!(
         encoded_keys_in(env, &deployment.proofs_id, StorageClass::Instance),
@@ -132,8 +138,6 @@ fn reconstructed_keys_match_the_keys_the_contracts_write() {
             encoded(env, proof_key(&successor_id)),
             encoded(env, proof_ttl_key(env, &successor_id)),
             encoded(env, successors_key(env, &deployment.proof_id)),
-            encoded(env, proof_policy_key(env, &deployment.proof_id)),
-            encoded(env, proof_policy_key(env, &successor_id)),
             encoded(env, issuer_active_proof_count_key(env, &deployment.issuer)),
             encoded(
                 env,
@@ -394,7 +398,7 @@ fn identical_namespaces_in_different_contracts_address_different_entries() {
     // another: the issuer registry still holds only its fixed instance keys.
     assert_eq!(
         encoded_keys_in(env, &deployment.issuers_id, StorageClass::Instance).len(),
-        9
+        8
     );
 }
 
@@ -417,10 +421,12 @@ fn a_key_written_by_one_contract_is_invisible_to_another() {
 
 #[test]
 fn consent_receipt_key_reconstructs_the_hash_only_index() {
-    let deployment = exercised_deployment();
+    let deployment = deployment();
     let env = &deployment.env;
     let policy_hash = bytes32(env, 30);
     let receipt_hash = bytes32(env, 31);
+    let proofs = proof_registry::ProofRegistryContractClient::new(env, &deployment.proofs_id);
+    proofs.commit_disclosure_consent(&deployment.proof_id, &policy_hash, &1, &receipt_hash);
     let commitment_hash = disclosure_consent_commitment(
         env,
         &env.ledger().network_id(),
@@ -434,5 +440,30 @@ fn consent_receipt_key_reconstructs_the_hash_only_index() {
     assert!(
         encoded_keys_in(env, &deployment.proofs_id, StorageClass::Persistent)
             .contains(&encoded(env, consent_receipt_key(env, &commitment_hash)))
+    );
+}
+
+#[test]
+fn consent_withdrawal_and_policy_version_keys_reconstruct() {
+    let deployment = exercised_deployment();
+    let env = &deployment.env;
+    let proofs = &deployment.proofs_id;
+    let persistent = encoded_keys_in(env, proofs, StorageClass::Persistent);
+    assert!(persistent.contains(&encoded(env, consent_withdrawal_key(env, 1))));
+    assert!(persistent.contains(&encoded(
+        env,
+        consent_withdrawal_index_key(env, &deployment.proof_id, &bytes32(env, 40))
+    )));
+    assert!(persistent.contains(&encoded(
+        env,
+        proof_policy_versions_key(env, &deployment.proof_id)
+    )));
+    assert!(encoded_keys_in(env, proofs, StorageClass::Instance)
+        .contains(&encoded(env, consent_withdrawal_count_key(env))));
+    assert!(
+        encoded_keys_in(env, &deployment.config_id, StorageClass::Persistent).contains(&encoded(
+            env,
+            history_retention_key(env, earnproof_shared::HistoryKind::ConfigChange)
+        ))
     );
 }

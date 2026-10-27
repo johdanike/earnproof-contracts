@@ -1,0 +1,44 @@
+{
+  "event": "proof_activation_acknowledged",
+  "contract": "proof-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": [
+    "proof_activation_acknowledged"
+  ],
+  "payload": {
+    "proof_id_hash": {
+      "type": "BytesN<32>",
+      "description": "Identifier hash of the acknowledged proof.",
+      "example": "0x0101010101010101010101010101010101010101010101010101010101010101"
+    },
+    "acknowledged_by": {
+      "type": "Address",
+      "description": "Issuer or issuer-authorized activator that acknowledged.",
+      "example": "GCATS5YOVB6ROX2WUNKGNQ2MP3GMXDMKSG2O4N5CLX3A6W4PZGZZI55U"
+    },
+    "actor_role": {
+      "type": "ActivationActorRole",
+      "description": "Issuer or Delegate.",
+      "example": "Issuer"
+    },
+    "ledger": {
+      "type": "u32",
+      "description": "Ledger sequence of the acknowledgement.",
+      "example": 4242
+    },
+    "timestamp": {
+      "type": "u64",
+      "description": "Ledger timestamp of the acknowledgement.",
+      "example": 1500
+    },
+    "sequence": {
+      "type": "u64",
+      "description": "Registry-wide acknowledgement number, starting at 1.",
+      "example": 1
+    }
+  },
+  "emitted_by": "acknowledge_activation",
+  "description": "Published once when a delayed proof is acknowledged as eligible. A repeated or ineligible attempt fails and publishes nothing.",
+  "compatibility": "additive"
+}

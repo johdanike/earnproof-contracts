@@ -1,0 +1,48 @@
+{
+  "event": "dispute_decision_committed_v2",
+  "contract": "proof-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 2,
+  "topics": ["dispute_decision_committed_v2"],
+  "payload": {
+    "proof_id_hash": {
+      "type": "BytesN<32>",
+      "description": "Identifier hash of the proof whose dispute reached a decision."
+    },
+    "decision_status": {
+      "type": "DisputeStatus",
+      "description": "Terminal decision outcome."
+    },
+    "reason_version": {
+      "type": "U32",
+      "description": "Version of the stable reason-code policy."
+    },
+    "reason_code": {
+      "type": "U32",
+      "description": "Stable reason code; no free-form reason or evidence is emitted."
+    },
+    "reason_commitment": {
+      "type": "Option<BytesN<32>>",
+      "description": "Optional commitment to off-chain rationale, never raw evidence."
+    },
+    "resolver": {
+      "type": "Address",
+      "description": "Address authorized to finalize the decision."
+    },
+    "resolver_role": {
+      "type": "DisputeResolverRole",
+      "description": "Governed role used to authorize the resolver."
+    },
+    "ledger": {
+      "type": "U32",
+      "description": "Ledger sequence at which the decision was committed."
+    },
+    "timestamp": {
+      "type": "U64",
+      "description": "Ledger timestamp at which the decision was committed."
+    }
+  },
+  "emitted_by": "resolve_dispute, reject_dispute",
+  "description": "Version-2 immutable dispute decision reason and resolver metadata.",
+  "compatibility": "additive"
+}

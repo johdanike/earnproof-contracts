@@ -9,9 +9,9 @@
 //! the fixtures usable as a compatibility contract for indexers rather than
 //! documentation that happened to be true once.
 
-use crate::harness::{hash, read_events, Deployment, ObservedEvent, APPROVED_SCHEMA};
+use crate::harness::{hash, read_events, Deployment, ObservedEvent};
 use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{Address, Env, Symbol, TryFromVal, Val};
+use soroban_sdk::{Address, BytesN, Env, Symbol, TryFromVal, Val};
 
 /// Every topic the fixtures declare, with the payload fields they promise.
 ///
@@ -40,6 +40,27 @@ const DECLARED_EVENTS: &[(&str, &[&str])] = &[
     ("schema_approved", &["version"]),
     ("schema_deprecated", &["version"]),
     ("schema_predecessor_set", &["version", "predecessor"]),
+    (
+        "history_retention_set",
+        &[
+            "kind",
+            "previous_max_entries",
+            "max_entries",
+            "revision",
+            "oldest_retained",
+            "changed_by",
+        ],
+    ),
+    (
+        "consent_withdrawn",
+        &[
+            "proof_id_hash",
+            "policy_hash",
+            "sequence",
+            "reason_code",
+            "commitment_hash",
+        ],
+    ),
     // issuer-registry
     (
         "issuer_registered",
@@ -108,6 +129,19 @@ const DECLARED_EVENTS: &[(&str, &[&str])] = &[
             "epoch",
         ],
     ),
+    (
+        "issuer_rotation_nominated",
+        &[
+            "issuer_id_hash",
+            "old_address",
+            "new_address",
+            "expires_at_ledger",
+        ],
+    ),
+    (
+        "issuer_rotation_cancelled",
+        &["issuer_id_hash", "cancelled_by"],
+    ),
     // proof-registry
     (
         "proof_registered",
@@ -143,6 +177,9 @@ const DECLARED_EVENTS: &[(&str, &[&str])] = &[
             "revoked_ledger",
             "by_admin",
             "epoch",
+            "policy_version",
+            "actor_role",
+            "authorization_domain",
         ],
     ),
     (
@@ -282,6 +319,12 @@ fn issuer_registry_events_match_their_fixtures() {
 
     for event in deployment.capture(|| {
         deployment.issuers.suspend_issuer(
+            &soroban_sdk::BytesN::from_array(&deployment.env, &{
+                let mut a = [0xA5u8; 32];
+                a[1] = 6;
+                a[2] = 0;
+                a
+            }),
             &deployment.issuer_id,
             &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
         )
@@ -291,6 +334,12 @@ fn issuer_registry_events_match_their_fixtures() {
 
     for event in deployment.capture(|| {
         deployment.issuers.reactivate_issuer(
+            &soroban_sdk::BytesN::from_array(&deployment.env, &{
+                let mut a = [0xA5u8; 32];
+                a[1] = 5;
+                a[2] = 0;
+                a
+            }),
             &deployment.issuer_id,
             &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
         )
@@ -308,6 +357,12 @@ fn issuer_registry_events_match_their_fixtures() {
 
     for event in deployment.capture(|| {
         deployment.issuers.revoke_issuer(
+            &soroban_sdk::BytesN::from_array(&deployment.env, &{
+                let mut a = [0xA5u8; 32];
+                a[1] = 4;
+                a[2] = 0;
+                a
+            }),
             &deployment.issuer_id,
             &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
         )
@@ -327,6 +382,33 @@ fn proof_registry_events_match_their_fixtures() {
 
     let admin_revoked = deployment.register_proof(0x22);
     for event in deployment.capture(|| deployment.proofs.admin_revoke_proof(&admin_revoked)) {
+        assert_matches_fixture(&deployment.env, &event);
+    }
+}
+
+#[test]
+fn history_retention_and_consent_withdrawal_events_match_their_fixtures() {
+    let deployment = Deployment::new();
+    for event in deployment.capture(|| {
+        deployment.config.set_history_retention(
+            &earnproof_shared::HistoryKind::ConfigChange,
+            &16,
+            &0,
+        );
+    }) {
+        assert_matches_fixture(&deployment.env, &event);
+    }
+
+    let proof = deployment.register_proof(0x24);
+    for event in deployment.capture(|| {
+        deployment.proofs.withdraw_disclosure_consent(
+            &proof,
+            &BytesN::from_array(&deployment.env, &[0x31; 32]),
+            &1,
+            &1,
+            &BytesN::from_array(&deployment.env, &[0x32; 32]),
+        );
+    }) {
         assert_matches_fixture(&deployment.env, &event);
     }
 }

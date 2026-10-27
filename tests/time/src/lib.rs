@@ -108,7 +108,7 @@ mod tests {
     }
 
     fn register(fixture: &Fixture, id: u8, expires_at: u64) {
-        fixture.proofs.register_proof_with_type_identifier(
+        fixture.proofs.register_proof_typed(
             &bytes(&fixture.clock.env, id),
             &bytes(&fixture.clock.env, id.wrapping_add(10)),
             &fixture.issuer,
@@ -135,7 +135,7 @@ mod tests {
         let fixture = fixture();
         for (id, expires_at) in [(1, NOW - 1), (2, NOW), (3, 0)] {
             assert_eq!(
-                fixture.proofs.try_register_proof_with_type_identifier(
+                fixture.proofs.try_register_proof_typed(
                     &bytes(&fixture.clock.env, id),
                     &bytes(&fixture.clock.env, id + 10),
                     &fixture.issuer,
@@ -163,7 +163,7 @@ mod tests {
     fn zero_schema_and_pause_are_deterministic_guards() {
         let fixture = fixture();
         assert_eq!(
-            fixture.proofs.try_register_proof_with_type_identifier(
+            fixture.proofs.try_register_proof_typed(
                 &bytes(&fixture.clock.env, 5),
                 &bytes(&fixture.clock.env, 6),
                 &fixture.issuer,
@@ -175,7 +175,7 @@ mod tests {
         );
         fixture.config.pause();
         assert_eq!(
-            fixture.proofs.try_register_proof_with_type_identifier(
+            fixture.proofs.try_register_proof_typed(
                 &bytes(&fixture.clock.env, 7),
                 &bytes(&fixture.clock.env, 8),
                 &fixture.issuer,
@@ -233,7 +233,7 @@ mod tests {
         let fixture = fixture();
         fixture.config.deprecate_schema_version(&1);
         assert_eq!(
-            fixture.proofs.try_register_proof_with_type_identifier(
+            fixture.proofs.try_register_proof_typed(
                 &bytes(&fixture.clock.env, 20),
                 &bytes(&fixture.clock.env, 30),
                 &fixture.issuer,
@@ -253,7 +253,7 @@ mod tests {
         fixture.config.deprecate_schema_version(&2);
         assert!(!fixture.config.is_schema_version_approved(&2));
         assert_eq!(
-            fixture.proofs.try_register_proof_with_type_identifier(
+            fixture.proofs.try_register_proof_typed(
                 &bytes(&fixture.clock.env, 21),
                 &bytes(&fixture.clock.env, 31),
                 &fixture.issuer,
@@ -277,7 +277,7 @@ mod tests {
             .is_valid_proof(&bytes(&fixture.clock.env, 22)));
         // But a new registration against the same (now deprecated) schema fails.
         assert_eq!(
-            fixture.proofs.try_register_proof_with_type_identifier(
+            fixture.proofs.try_register_proof_typed(
                 &bytes(&fixture.clock.env, 23),
                 &bytes(&fixture.clock.env, 33),
                 &fixture.issuer,
@@ -295,7 +295,7 @@ mod tests {
     fn zero_expires_at_rejected() {
         let fixture = fixture();
         assert_eq!(
-            fixture.proofs.try_register_proof_with_type_identifier(
+            fixture.proofs.try_register_proof_typed(
                 &bytes(&fixture.clock.env, 40),
                 &bytes(&fixture.clock.env, 50),
                 &fixture.issuer,
@@ -331,7 +331,7 @@ mod tests {
         proofs.initialize(&admin, &issuers_id, &config_id);
 
         // expires_at = 1, now = 0 → 1 > 0, should succeed.
-        proofs.register_proof_with_type_identifier(
+        proofs.register_proof_typed(
             &bytes(&clock.env, 41),
             &bytes(&clock.env, 51),
             &issuer,
@@ -577,5 +577,191 @@ mod tests {
         let eligibility = fixture.proofs.get_dispute_filing_eligibility(&proof_id);
         assert_eq!(eligibility.anchor_timestamp, NOW + 7);
         assert_eq!(eligibility.status, DisputeFilingStatus::Eligible);
+    }
+
+    #[test]
+    fn test_error_catalog_version_queries() {
+        let fixture = fixture();
+        let pc_cat = fixture.config.get_error_catalog_version();
+        assert_eq!(
+            pc_cat.catalog_version,
+            earnproof_shared::ERROR_CATALOG_VERSION
+        );
+        assert_eq!(pc_cat.min_code, earnproof_shared::PROTOCOL_CONFIG_ERROR_MIN);
+        assert_eq!(pc_cat.max_code, earnproof_shared::PROTOCOL_CONFIG_ERROR_MAX);
+
+        let ir_id = fixture
+            .clock
+            .env
+            .register(issuer_registry::IssuerRegistryContract, ());
+        let issuers =
+            issuer_registry::IssuerRegistryContractClient::new(&fixture.clock.env, &ir_id);
+        let ir_cat = issuers.get_error_catalog_version();
+        assert_eq!(
+            ir_cat.catalog_version,
+            earnproof_shared::ERROR_CATALOG_VERSION
+        );
+        assert_eq!(ir_cat.min_code, earnproof_shared::ISSUER_REGISTRY_ERROR_MIN);
+        assert_eq!(ir_cat.max_code, earnproof_shared::ISSUER_REGISTRY_ERROR_MAX);
+
+        let pr_cat = fixture.proofs.get_error_catalog_version();
+        assert_eq!(
+            pr_cat.catalog_version,
+            earnproof_shared::ERROR_CATALOG_VERSION
+        );
+        assert_eq!(pr_cat.min_code, earnproof_shared::PROOF_REGISTRY_ERROR_MIN);
+        assert_eq!(pr_cat.max_code, earnproof_shared::PROOF_REGISTRY_ERROR_MAX);
+    }
+
+    #[test]
+    fn test_successor_timelock_and_activation_delay() {
+        let fixture = fixture();
+        let env = &fixture.clock.env;
+        assert_eq!(fixture.config.get_successor_activation_delay(), 0);
+        assert_eq!(
+            fixture.config.get_successor_status().state,
+            earnproof_shared::SuccessorState::Absent
+        );
+
+        // Governed delay
+        fixture.config.set_successor_activation_delay(&100);
+        assert_eq!(fixture.config.get_successor_activation_delay(), 100);
+
+        let successor = Address::generate(env);
+        let start_ledger = env.ledger().sequence();
+        fixture.config.nominate_successor(&successor);
+
+        let status = fixture.config.get_successor_status();
+        assert_eq!(status.state, earnproof_shared::SuccessorState::Pending);
+        assert_eq!(status.successor, Some(successor.clone()));
+        assert_eq!(status.nominated_at_ledger, start_ledger);
+        assert_eq!(status.earliest_activation_ledger, start_ledger + 100);
+
+        // Activating before boundary fails
+        let early_res = fixture.config.try_activate_successor();
+        assert_eq!(
+            early_res,
+            Err(Ok(
+                earnproof_shared::ContractError::UpgradeTimelockNotElapsed
+            ))
+        );
+
+        // Shortening governed delay cannot shorten existing nomination
+        fixture.config.set_successor_activation_delay(&10);
+        let status_after_delay_change = fixture.config.get_successor_status();
+        assert_eq!(
+            status_after_delay_change.earliest_activation_ledger,
+            start_ledger + 100
+        );
+
+        // Still fails at start_ledger + 50
+        env.ledger().set_sequence_number(start_ledger + 50);
+        assert_eq!(
+            fixture.config.try_activate_successor(),
+            Err(Ok(
+                earnproof_shared::ContractError::UpgradeTimelockNotElapsed
+            ))
+        );
+
+        // Boundary: exact ledger start_ledger + 100 becomes Ready and succeeds
+        env.ledger().set_sequence_number(start_ledger + 100);
+        assert_eq!(
+            fixture.config.get_successor_status().state,
+            earnproof_shared::SuccessorState::Ready
+        );
+        assert!(fixture.config.try_activate_successor().is_ok());
+
+        assert_eq!(
+            fixture.config.get_successor_status().state,
+            earnproof_shared::SuccessorState::Decommissioned
+        );
+    }
+
+    #[test]
+    fn test_successor_cancellation() {
+        let fixture = fixture();
+        let env = &fixture.clock.env;
+        fixture.config.set_successor_activation_delay(&50);
+        let successor = Address::generate(env);
+        fixture.config.nominate_successor(&successor);
+        assert_eq!(
+            fixture.config.get_successor_status().state,
+            earnproof_shared::SuccessorState::Pending
+        );
+
+        fixture.config.cancel_successor_nomination();
+        assert_eq!(
+            fixture.config.get_successor_status().state,
+            earnproof_shared::SuccessorState::Absent
+        );
+        assert_eq!(fixture.config.get_successor(), None);
+    }
+
+    #[test]
+    fn test_versioned_query_response_envelopes() {
+        let fixture = fixture();
+        let env = &fixture.clock.env;
+
+        let cap_env = fixture.config.get_capacity_envelope();
+        assert_eq!(
+            cap_env.header.schema_version,
+            earnproof_shared::QUERY_ENVELOPE_SCHEMA_VERSION
+        );
+        assert_eq!(cap_env.header.contract_address, fixture.config.address);
+        assert_eq!(cap_env.header.network_id, env.ledger().network_id());
+        assert_eq!(
+            cap_env.max_capacity,
+            earnproof_shared::CONFIG_HISTORY_CAPACITY
+        );
+
+        let policy_env = fixture.config.get_policy_envelope(&1);
+        assert_eq!(
+            policy_env.header.schema_version,
+            earnproof_shared::QUERY_ENVELOPE_SCHEMA_VERSION
+        );
+        assert!(policy_env.policy.max_validity_seconds > 0);
+
+        let hist_env = fixture.config.get_history_envelope();
+        assert_eq!(
+            hist_env.header.schema_version,
+            earnproof_shared::QUERY_ENVELOPE_SCHEMA_VERSION
+        );
+    }
+
+    #[test]
+    fn test_migration_checkpoint_checksum_and_resume() {
+        let fixture = fixture();
+        let env = &fixture.clock.env;
+
+        fixture.config.begin_migration(&2, &100);
+        let status = fixture.config.advance_migration(&0, &10);
+        assert_eq!(status.cursor, 10);
+
+        let checkpoint = fixture.config.get_migration_checkpoint().unwrap();
+        assert_eq!(
+            checkpoint.checkpoint_version,
+            earnproof_shared::MIGRATION_CHECKPOINT_VERSION
+        );
+        assert_eq!(checkpoint.cursor_start, 0);
+        assert_eq!(checkpoint.cursor_end, 10);
+        assert_eq!(checkpoint.processed_count, 10);
+        assert_eq!(checkpoint.total_items, 100);
+
+        // Envelope query
+        let env_res = fixture.config.get_checkpoint_envelope();
+        assert_eq!(env_res.checkpoint, checkpoint);
+
+        // Resume with valid checkpoint succeeds
+        let resume_res = fixture.config.resume_migration(&checkpoint);
+        assert_eq!(resume_res.cursor, 10);
+
+        // Checksum mismatch blocks resume
+        let mut corrupted = checkpoint.clone();
+        corrupted.checksum = soroban_sdk::BytesN::from_array(env, &[0xFFu8; 32]);
+        let fail_res = fixture.config.try_resume_migration(&corrupted);
+        assert_eq!(
+            fail_res,
+            Err(Ok(earnproof_shared::ContractError::InvalidInput))
+        );
     }
 }

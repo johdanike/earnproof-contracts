@@ -11,3 +11,5 @@ mod ghost;
 mod harness;
 #[cfg(test)]
 mod ordering;
+#[cfg(test)]
+mod schema_registry_versions;

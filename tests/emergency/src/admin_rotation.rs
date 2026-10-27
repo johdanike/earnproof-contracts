@@ -231,7 +231,9 @@ fn issuer_containment_requires_the_issuer_registry_admin() {
     let issuer_id = crate::harness::issuer_id_hash(&deployment.env, 1);
 
     deployment.config.pause();
+    let proposal = crate::harness::hash(&deployment.env, 0x71);
     deployment.issuers.suspend_issuer(
+        &proposal,
         &issuer_id,
         &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
     );
@@ -277,16 +279,20 @@ fn a_revoked_issuer_cannot_be_reactivated_after_the_incident() {
     let issuer_id = crate::harness::issuer_id_hash(&deployment.env, 1);
 
     deployment.config.pause();
+    let proposal = crate::harness::hash(&deployment.env, 0x72);
     deployment.issuers.revoke_issuer(
+        &proposal,
         &issuer_id,
         &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
     );
     deployment.config.unpause();
 
+    let proposal_react = crate::harness::hash(&deployment.env, 0x73);
     assert!(
         deployment
             .issuers
             .try_reactivate_issuer(
+                &proposal_react,
                 &issuer_id,
                 &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32])
             )
@@ -305,7 +311,9 @@ fn a_revoked_issuer_cannot_register_new_proofs_after_unpause() {
     let issuer_id = crate::harness::issuer_id_hash(&deployment.env, 1);
 
     deployment.config.pause();
+    let proposal = crate::harness::hash(&deployment.env, 0x74);
     deployment.issuers.revoke_issuer(
+        &proposal,
         &issuer_id,
         &soroban_sdk::BytesN::from_array(&deployment.env, &[1u8; 32]),
     );
@@ -314,7 +322,7 @@ fn a_revoked_issuer_cannot_register_new_proofs_after_unpause() {
     assert!(
         deployment
             .proofs
-            .try_register_proof_with_type_identifier(
+            .try_register_proof_typed(
                 &crate::harness::hash(&deployment.env, 0xA1),
                 &crate::harness::hash(&deployment.env, 0xA2),
                 &deployment.issuer,

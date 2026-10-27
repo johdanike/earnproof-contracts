@@ -393,3 +393,12 @@ Get-Content scripts/upgrade-manifest.<contract>.<timestamp>.json
   consumed).
 - For proof-registry: register a test proof against an approved schema version
   and confirm it is accepted.
+
+### Storage layout and capability checks
+
+- Before and after an upgrade, read `get_storage_layout()`. An upgrade never
+  moves `active_layout`; if the status is `MigrationRequired`, run
+  `begin_layout_migration` and `complete_layout_migration` for the reported
+  target. See [Storage Layout Versions](./storage-layout-versions.md).
+- Read `get_capabilities()` and confirm the new build keeps every bit the old
+  build reported. See [Contract Capability Bitmaps](./contract-capabilities.md).

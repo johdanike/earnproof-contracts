@@ -1,0 +1,28 @@
+{
+  "event": "dispute_rejected",
+  "contract": "proof-registry",
+  "contract_version": "0.1.0",
+  "schema_version": 1,
+  "topics": ["dispute_rejected"],
+  "payload": {
+    "proof_id_hash": {
+      "type": "BytesN<32>",
+      "description": "Identifier hash of the proof whose dispute was rejected."
+    },
+    "rejected_by": {
+      "type": "Address",
+      "description": "Administrator that rejected the dispute."
+    },
+    "rejected_by_class": {
+      "type": "DisputeActorClass",
+      "description": "Coarse role classification of the resolver."
+    },
+    "rejected_at": {
+      "type": "U64",
+      "description": "Ledger timestamp of the rejection."
+    }
+  },
+  "emitted_by": "reject_dispute",
+  "description": "Legacy rejection event retained unchanged for existing indexers.",
+  "compatibility": "stable"
+}

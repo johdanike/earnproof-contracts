@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(bad_init, Err(Ok(ContractError::InvalidInput)));
 
         proof_client.initialize(&admin, &issuer_registry_id, &config_id);
-        let result = proof_client.try_register_proof_with_type_identifier(
+        let result = proof_client.try_register_proof_typed(
             &bytes(&env, 3),
             &bytes(&env, 4),
             &Address::from_str(&env, ZERO_ADDR),
@@ -106,7 +106,7 @@ mod tests {
         );
         assert_eq!(result, Err(Ok(ProofError::InvalidAddress)));
 
-        let self_result = proof_client.try_register_proof_with_type_identifier(
+        let self_result = proof_client.try_register_proof_typed(
             &bytes(&env, 5),
             &bytes(&env, 6),
             &proof_id,

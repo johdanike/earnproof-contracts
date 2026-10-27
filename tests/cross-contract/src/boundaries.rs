@@ -132,13 +132,16 @@ fn register_with_root_auth_only(deployment: &Deployment, proof_id: &BytesN<32>) 
     let env = &deployment.env;
     let commitment_hash = commitment(env, 0xC0);
     let expires_at = deployment.expiry();
+    let type_id = soroban_sdk::BytesN::from_array(env, &[1u8; 32]);
+    let pred_id: Option<soroban_sdk::BytesN<32>> = None;
     let args: soroban_sdk::Vec<soroban_sdk::Val> = (
         proof_id.clone(),
         commitment_hash.clone(),
         deployment.issuer.clone(),
         APPROVED_SCHEMA,
         expires_at,
-        soroban_sdk::BytesN::from_array(env, &[1u8; 32]),
+        pred_id,
+        type_id,
     )
         .into_val(env);
 
@@ -153,7 +156,7 @@ fn register_with_root_auth_only(deployment: &Deployment, proof_id: &BytesN<32>) 
     }]);
 
     outcome_of(|| {
-        deployment.proofs.try_register_proof_with_type_identifier(
+        deployment.proofs.try_register_proof_typed(
             proof_id,
             &commitment_hash,
             &deployment.issuer,
@@ -252,7 +255,7 @@ fn a_successful_pause_read_gates_the_registration_correctly() {
     let proof_id = hash(&deployment.env, 0x33);
 
     let rejection = outcome_of(|| {
-        deployment.proofs.try_register_proof_with_type_identifier(
+        deployment.proofs.try_register_proof_typed(
             &proof_id,
             &commitment(&deployment.env, 0xC0),
             &deployment.issuer,
@@ -309,7 +312,7 @@ fn a_successful_schema_read_gates_the_registration_correctly() {
     let proof_id = hash(&deployment.env, 0x43);
 
     let rejection = outcome_of(|| {
-        deployment.proofs.try_register_proof_with_type_identifier(
+        deployment.proofs.try_register_proof_typed(
             &proof_id,
             &commitment(&deployment.env, 0xC0),
             &deployment.issuer,
@@ -387,7 +390,7 @@ fn a_successful_issuer_read_gates_the_registration_correctly() {
     let proof_id = hash(&deployment.env, 0x53);
 
     let rejection = outcome_of(|| {
-        deployment.proofs.try_register_proof_with_type_identifier(
+        deployment.proofs.try_register_proof_typed(
             &proof_id,
             &commitment(&deployment.env, 0xC0),
             &deployment.issuer,
@@ -448,7 +451,7 @@ fn a_duplicate_proof_id_is_rejected_before_writing() {
 
     // Try to register the same proof id again
     let rejection = outcome_of(|| {
-        deployment.proofs.try_register_proof_with_type_identifier(
+        deployment.proofs.try_register_proof_typed(
             &proof_id,
             &commitment(&deployment.env, 0xC0),
             &deployment.issuer,

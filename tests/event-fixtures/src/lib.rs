@@ -97,6 +97,9 @@ const PROTOCOL_CONFIG_EVENTS: &[&str] = &[
     "schema-deprecated",
     "schema-deprecated-with-replacement",
     "schema-predecessor-set",
+    "hash-algorithm-approved",
+    "hash-algorithm-activated",
+    "hash-algorithm-deprecated",
 ];
 
 #[test]
@@ -245,7 +248,12 @@ fn issuer_registry_fixture_matches_contract_version() {
 // added `proof_registered` and `proof_revoked`, each carrying the epoch it
 // advanced to. Mirrors the protocol-config fixture pattern above.
 
-const PROOF_REGISTRY_EVENTS: &[&str] = &["proof-registered", "proof-revoked"];
+const PROOF_REGISTRY_EVENTS: &[&str] = &[
+    "proof-registered",
+    "proof-revoked",
+    "authority-policy-version-changed",
+    "proof-activation-acknowledged",
+];
 
 #[test]
 fn proof_registry_all_event_fixtures_exist() {

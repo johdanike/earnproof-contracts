@@ -130,7 +130,7 @@ pub fn build(name: &str) -> Scenario {
             )
         });
         recorder.after(&env, || {
-            proofs.register_proof_with_type_identifier(
+            proofs.register_proof_typed(
                 &bytes32(&env, PROOF_ID),
                 &bytes32(&env, PROOF_COMMITMENT),
                 &issuer,
@@ -149,7 +149,9 @@ pub fn build(name: &str) -> Scenario {
         "revoked" => {
             recorder.after(&env, || proofs.revoke_proof(&bytes32(&env, PROOF_ID)));
             recorder.after(&env, || {
+                let proposal = bytes32(&env, 99);
                 issuers.revoke_issuer(
+                    &proposal,
                     &bytes32(&env, ISSUER_ID),
                     &soroban_sdk::BytesN::from_array(&env, &[1u8; 32]),
                 )

@@ -58,13 +58,14 @@ fn register_proof_demands_exactly_the_named_issuer() {
     let commitment = hash(&d.env, 0xA2);
     let expires_at = d.env.ledger().timestamp() + 100_000;
 
-    d.proofs.register_proof_with_type_identifier(
+    d.proofs.register_proof_typed(
         &proof_id,
         &commitment,
         &d.issuer,
         &APPROVED_SCHEMA,
         &expires_at,
-        &soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32]),
+        &pred,
+        &pt,
     );
 
     assert_single_auth_tree(
@@ -78,7 +79,8 @@ fn register_proof_demands_exactly_the_named_issuer() {
             &d.issuer,
             &APPROVED_SCHEMA,
             &expires_at,
-            &soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32]),
+            &pred,
+            &pt,
         )
             .into_val(&d.env),
     );
@@ -201,6 +203,8 @@ fn registration_auth_is_not_forwardable_to_another_issuer() {
     let commitment = hash(&d.env, 0xC5);
     let expires_at = d.env.ledger().timestamp() + 100_000;
 
+    let pt = soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32]);
+    let pred: Option<soroban_sdk::BytesN<32>> = None;
     authorize(
         &d.env,
         &d.second_issuer,
@@ -212,19 +216,21 @@ fn registration_auth_is_not_forwardable_to_another_issuer() {
             &d.issuer,
             &APPROVED_SCHEMA,
             &expires_at,
-            &soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32]),
+            &pred,
+            &pt,
         )
             .into_val(&d.env),
     );
     assert!(
         d.proofs
-            .try_register_proof_with_type_identifier(
+            .try_register_proof_typed(
                 &proof_id,
                 &commitment,
                 &d.issuer,
                 &APPROVED_SCHEMA,
                 &expires_at,
-                &soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32])
+                &pred,
+                &pt,
             )
             .is_err(),
         "issuer B must not register proofs in issuer A's name"
@@ -244,15 +250,18 @@ fn cross_contract_reads_leave_the_callees_untouched_on_rejection() {
     let expires_at = d.env.ledger().timestamp() + 100_000;
 
     // No authorization at all.
+    let pt = soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32]);
+    let pred: Option<soroban_sdk::BytesN<32>> = None;
     assert!(d
         .proofs
-        .try_register_proof_with_type_identifier(
+        .try_register_proof_typed(
             &proof_id,
             &commitment,
             &d.issuer,
             &APPROVED_SCHEMA,
             &expires_at,
-            &soroban_sdk::BytesN::from_array(&d.env, &[1u8; 32])
+            &pred,
+            &pt,
         )
         .is_err());
     d.assert_no_side_effects(

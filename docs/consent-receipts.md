@@ -51,3 +51,34 @@ issuer may commit a receipt. A failed call writes no index entry and emits no
 event. Revocation is terminal; an archived commitment can be restored by the
 ledger when accessed, while a commitment that has expired and been removed no
 longer prevents a fresh write.
+
+## Consent withdrawal records
+
+`withdraw_disclosure_consent(proof_id_hash, policy_hash, expected_sequence,
+reason_code, withdrawal_hash)` lets the proof's issuer commit a hash-only record
+that future disclosure consent for one proof and policy was withdrawn. The call
+returns a `ConsentWithdrawalRecord`.
+
+* `expected_sequence` must equal the next withdrawal sequence (the current
+  `get_consent_withdrawal_count()` plus one). A replayed or raced request fails
+  with `StaleConsentWithdrawalSequence` and writes nothing.
+* `reason_code` is a published code: 1 subject request, 2 policy change,
+  3 issuer action, 4 expired by agreement. Anything else fails with
+  `InvalidConsentWithdrawalReason`. Reason text is never accepted or stored.
+* `withdrawal_hash` is a caller-side salted hash. The stored
+  `commitment_hash` is scoped to the network id and registry address and binds
+  the proof, policy, sequence, reason code and `withdrawal_hash`, so the same
+  withdrawal cannot be replayed on another network or registry.
+* A pair is withdrawn at most once (`ConsentAlreadyWithdrawn`). Withdrawal is
+  final and is allowed for revoked or expired proofs.
+* After withdrawal, `commit_disclosure_consent` for the same proof and policy
+  fails with `ConsentWithdrawn`. Earlier receipts are not rewritten or removed,
+  and other policies on the same proof are unaffected.
+
+Queries: `is_consent_withdrawn`, `get_consent_withdrawal`,
+`get_consent_withdrawal_count`, and `get_consent_withdrawals(from_sequence,
+limit)` (limit 1 to 20, oldest first). The event is `consent_withdrawn` with
+`proof_id_hash`, `policy_hash`, `sequence`, `reason_code`, `commitment_hash`.
+
+Storage: `ConsentWithdrawal(sequence)`, `ConsentWithdrawalIndex(proof, policy)`
+(persistent) and `ConsentWithdrawalCount` (instance).

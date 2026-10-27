@@ -35,6 +35,11 @@
       "description": "Ledger timestamp at which the proof expires.",
       "example": 50000
     },
+    "configuration_commitments": {
+      "type": "ProofConfigurationCommitments",
+      "description": "Immutable digest and version references for the proof, issuer, protocol, schema, and issuer policy configuration at registration.",
+      "example": null
+    },
     "disclosure_policy_hash": {
       "type": "BytesN<32>",
       "description": "SHA-256 commitment to the canonical selective-disclosure policy; all-zero denotes a legacy registration without a policy commitment.",

@@ -1,3 +1,4 @@
+#![allow(clippy::needless_borrow)]
 //! Behaviour when registry or configuration state is absent.
 //!
 //! Archival is not the only way state can be missing: a contract can be called
@@ -43,7 +44,7 @@ fn registration_against_an_uninitialized_registry_fails_closed() {
 
     // Without instance state there is no protocol config to consult, so the
     // call must not proceed to a write.
-    let result = client.try_register_proof_with_type_identifier(
+    let result = client.try_register_proof_typed(
         &bytes(&env, 1),
         &bytes(&env, 2),
         &issuer,
@@ -93,7 +94,7 @@ fn an_unapproved_schema_version_reads_as_unapproved_rather_than_failing() {
     assert!(!deployment.config.is_schema_version_approved(&7));
     assert!(!deployment.config.is_schema_version_approved(&0));
 
-    let result = deployment.proofs.try_register_proof_with_type_identifier(
+    let result = deployment.proofs.try_register_proof_typed(
         &bytes(&deployment.env, 1),
         &bytes(&deployment.env, 2),
         &deployment.issuer,
@@ -151,7 +152,7 @@ fn a_registration_pointed_at_an_empty_protocol_config_is_rejected() {
     let proofs = ProofRegistryContractClient::new(env, &proofs_id);
     proofs.initialize(&deployment.admin, &deployment.issuers_id, &empty_config);
 
-    let result = proofs.try_register_proof_with_type_identifier(
+    let result = proofs.try_register_proof_typed(
         &bytes(env, 1),
         &bytes(env, 2),
         &deployment.issuer,

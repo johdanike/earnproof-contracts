@@ -16,12 +16,14 @@ tests/fixtures/events/
       unpaused.json
       schema-approved.json
       schema-deprecated.json
+      history-retention-set.json
   issuer-registry/
     v1/
       events.json                   No events emitted yet
   proof-registry/
     v1/
       consent-receipt-committed.json Consent commitment event
+      consent-withdrawn.json         Consent withdrawal event
 ```
 
 ## Fixture Format
